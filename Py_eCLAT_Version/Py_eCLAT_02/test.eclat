@@ -1,0 +1,13 @@
+from srv6 import encap, monitor, routing
+    #ciao
+
+encap_config = 3
+encap_param = 1
+
+def myChain():
+    ip_type = 0xcafe
+    i = 0
+    if  ip_type == 0xcafe:
+        i = i + encap_config
+    while i < 7:
+        i = i + 1

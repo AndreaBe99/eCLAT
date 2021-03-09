@@ -1,0 +1,57 @@
+main : program
+
+program : statement_full
+            |   statement_full program
+
+block : statement_full
+            |   statement_full block
+
+statement_full : statement NEWLINE
+            |   statement
+
+statement : expression
+            |   FROM IDENTIFIER IMPORT arglist
+            |   IMPORT arglist
+            |   IDENTIFIER = expression
+            |   DEF IDENTIFIER ( arglist ) : NEWLINE block END
+            |   DEF IDENTIFIER ( ) : NEWLINE block END
+            |   RETURN
+            |   RETURN expression
+
+arglist : IDENTIFIER
+            |   IDENTIFIER ,
+            |   arglist : IDENTIFIER , arglist
+
+expression: IF expression : statement END
+            |   IF expression : statement ELSE : statement END
+            |   IF expression : NEWLINE block END
+            |   IF expression : NEWLINE block ELSE : NEWLINE block END
+            |   const
+            |   IDENTIFIER
+            |   IDENTIFIER ( )
+            |   IDENTIFIER ( expressionlist )
+            |   [ expression ]
+            |   [ expressionlist ]
+            |   ( expression )
+            |   NOT expression
+            |   expression PLUS expression
+            |   expression MINUS expression
+            |   expression MUL expression
+            |   expression DIV expression
+            |   expression != expression
+            |   expression == expression
+            |   expression >= expression
+            |   expression <= expression
+            |   expression > expression
+            |   expression < expression
+            |   expression AND expression
+            |   expression OR expression
+
+const : FLOAT
+            |   BOOLEAN
+            |   INTEGER
+            |   STRING
+
+expressionlist: expression
+            |   expression ,
+            |   expression , expressionlist
