@@ -293,6 +293,7 @@ class Call(BaseBox):
     def __init__(self, name, args):
         self.name = name
         self.args = args
+        self.value = 0
 
     def eval(self, env):
         result = Null()
@@ -316,8 +317,8 @@ class Return(BaseBox):
         self.value = value
 
     def eval(self, env):
-        print("RETURN: " + str(self.value.eval(env).value))
-        return self.value.eval(env).value
+        print("RETURN: " + str(self.value.eval(env)))
+        return self.value.eval(env)
 
     def rep(self):
         result = 'Return %s (' % self.name

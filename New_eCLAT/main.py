@@ -55,7 +55,7 @@ def detect_indent(lexer, source):
     for line_num, line in enumerate(source.splitlines(), 0):
         line = line.rstrip()
         line = line.replace("\t", indent_symbol*4)
-        
+
         # Rimuovi il commento dalla riga
         comment = re.search(comments, line)
         while comment is not None:

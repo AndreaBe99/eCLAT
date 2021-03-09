@@ -100,21 +100,30 @@ class Parser():
         def statement_func_noargs(p):
             return FunctionDeclaration(p[1].getstr(), Null(), p[6])
         
-        @self.pg.production('expression : IF expression : statement ')
-        def expression_if_single_line(p):
-            return If(condition=p[1], body=p[3])
+        # @self.pg.production('expression : IF expression : statement ELSE : statement')
+        # def expression_if_else_single_line(p):
+        #     return If(condition=p[1], body=p[3], else_body=p[6])
 
-        @self.pg.production('expression : IF expression : statement ELSE : statement ')
-        def expression_if_else_single_line(p):
-            return If(condition=p[1], body=p[3], else_body=p[6])
+        # @self.pg.production('expression : IF expression : statement')
+        # def expression_if_single_line(p):
+        #     return If(condition=p[1], body=p[3])
+        
+        # @self.pg.production('expression : IF expression : NEWLINE blocks ')
+        # def expression_if(p):
+        #     return If(condition=p[1], body=p[4])
 
-        @self.pg.production('expression : IF expression : NEWLINE block ')
+        # @self.pg.production('expression : IF expression : NEWLINE block ELSE : NEWLINE blocks')
+        # def expression_if_else(p):
+        #     return If(condition=p[1], body=p[4], else_body=p[8])
+
+
+        @self.pg.production('expression : IF expression : NEWLINE INDENT blocks DEDENT')
         def expression_if(p):
-            return If(condition=p[1], body=p[4])
+            return If(condition=p[1], body=p[5])
 
-        @self.pg.production('expression : IF expression : NEWLINE block ELSE : NEWLINE block ')
+        @self.pg.production('expression : IF expression : NEWLINE block ELSE : NEWLINE INDENT blocks DEDENT')
         def expression_if_else(p):
-            return If(condition=p[1], body=p[4], else_body=p[8])
+            return If(condition=p[1], body=p[4], else_body=p[9])
         
         @self.pg.production('expression : WHILE expression : NEWLINE block ')
         def expression_while(p):
