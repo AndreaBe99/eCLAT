@@ -27,7 +27,7 @@ if not sys.warnoptions:
 class Environment(object):
     def __init__(self):
         self.variables = {}
-     
+
 
 def run_file(args):
     fname = args
@@ -55,7 +55,7 @@ def detect_indent(lexer, source):
     for line_num, line in enumerate(source.splitlines(), 0):
         line = line.rstrip()
         line = line.replace("\t", indent_symbol*4)
-
+        
         # Rimuovi il commento dalla riga
         comment = re.search(comments, line)
         while comment is not None:
@@ -90,21 +90,21 @@ def detect_indent(lexer, source):
             if line[len(line)-1:len(line)] == ":":
                 indent_number += 4
                 block = True  
-              
+            
             # Se è l'ultima riga aggiungi i token DEDENT rimasti nello stack  
             if line_num == len(source.splitlines()) - 1:
                 while len(indent_stack) > 1:
                     indent_number -= 4
                     indent_stack.pop()
                     dedent_number += 1
-
+            
             text = text + line + " _dedent"*dedent_number + "\n"
         #print((1+line_num), line)
     print(text)
     return lexer.lex(text)
 
 
-      
+
 #run_file("test.eclat")
 
 def show_chain():
