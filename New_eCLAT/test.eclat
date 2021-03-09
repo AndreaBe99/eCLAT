@@ -4,7 +4,7 @@ from srv6 import encap, monitor, routing
 
 encap_config = 3     #ciao
 encap_param = 1
-
+#ciao
 def myChain():
     ip_type = 0xcafe
     i = 0
