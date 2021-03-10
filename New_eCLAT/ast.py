@@ -15,7 +15,8 @@ class Program(BaseBox):
         result = None
         for statement in self.statements:
             result = statement.eval(env)
-            #print(result.to_string())
+            print(statement.rep())
+
         print("\nVARIABILI: ")
         for var in env.variables:
             print(var, env.variables[var])
@@ -23,7 +24,6 @@ class Program(BaseBox):
 
     def get_statements(self):
         return self.statements
-    
 
 class Block(BaseBox):
     def __init__(self, statement):
@@ -35,7 +35,7 @@ class Block(BaseBox):
 
     def get_statements(self):
         return self.statements
-
+    
     def eval(self, env):
         #print "count: %s" % len(self.statements)
         result = None
@@ -44,11 +44,13 @@ class Block(BaseBox):
             #print result.to_string()
         return result
     
+    def rep(self):
+        result = 'Block('
+        for statement in self.statements:
+            result += '\n\t' + statement.rep()
+        result += '\n)'
+        return result
 
-class Null(BaseBox):
-    def eval(self, env):
-        return self
-    
 
 class InnerArray(BaseBox):
     def __init__(self, statements=None):
@@ -109,8 +111,29 @@ class Array(BaseBox):
             for statement in self.statements:
                 #self.values.append(statement.eval(env))
                 self.values.append(statement)
-            print(self.values)
+            #print(self.values)
         return self
+
+    def rep(self):
+        result = 'Array('
+        #result += ",".join(self.map(lambda x: x.rep(), self.statements))
+        result += ",".join(self.map(lambda x: x, self.statements))
+        result += ')'
+        return result
+
+    def to_string(self):
+        return '[%s]' % (", ".join(self.map(lambda x: x.to_string(), self.values)))
+
+
+class Null(BaseBox):
+    def eval(self, env):
+        return self
+    
+    def to_string(self):
+        return 'null'
+
+    def rep(self):
+        return 'Null()'
 
 
 class Boolean(BaseBox):
@@ -119,6 +142,9 @@ class Boolean(BaseBox):
 
     def eval(self, env):
         return self.value
+    
+    def rep(self):
+        return 'Boolean(%s)' % self.value
 
 
 class Integer(Integer):
@@ -128,6 +154,12 @@ class Integer(Integer):
     def eval(self, env):
         return self.value
 
+    def to_string(self):
+        return str(self.value)
+
+    def rep(self):
+        return 'Integer(%s)' % self.value
+
 
 class Float(BaseBox):
     def __init__(self, value):
@@ -135,6 +167,12 @@ class Float(BaseBox):
 
     def eval(self, env):
         return self.value
+    
+    def to_string(self):
+        return str(self.value)
+
+    def rep(self):
+        return 'Float(%s)' % self.value
 
 
 class String(BaseBox):
@@ -143,6 +181,12 @@ class String(BaseBox):
 
     def eval(self, env):
         return self.value
+    
+    def to_string(self):
+        return '"%s"' % str(self.value)
+
+    def rep(self):
+        return 'String("%s")' % self.value
 
 
 
@@ -154,13 +198,11 @@ class Variable(BaseBox):
     def getname(self):
         return str(self.name)
     
-    
     def eval(self, env):
-        #return env.variables[self.name].eval(env)
-        print("VAR: " + str(self.name) + " is " + str(self.value))
+        #print("VAR: " + str(self.name) + " is " + str(self.value))
         if env.variables.get(self.name, None) is not None:
             self.value = env.variables[self.name]
-            #print("VAR: " + str(self.name) + " is " + str(self.value))
+            ##print("VAR: " + str(self.name) + " is " + str(self.value))
             return self.value
         raise Exception("Not yet defined " + str(self.name))
     
@@ -179,7 +221,7 @@ class BinaryOperation():
         self.left = left
         self.right = right
         #self.value = 0
-    
+
     def eval(self, env):
         if self.operator == '+':
             return self.left.eval(env).__add__(self.right.eval(env))
@@ -190,7 +232,6 @@ class BinaryOperation():
         elif self.operator == '/':
             return self.left.eval(env).__div__(self.right.eval(env))
         elif self.operator == '==':
-            #print("OPERATION: " + str(self.left.eval(env)) + " " + str(self.right.eval(env)))
             return self.left.eval(env).__eq__(self.right.eval(env))
         elif self.operator == '!=':
             result = self.left.eval(env).__eq__(self.right.eval(env))
@@ -214,6 +255,9 @@ class BinaryOperation():
             return Boolean(one.value or two.value)
         else:
             raise Exception("Shouldn't be possible")
+    
+    def rep(self):
+        return 'BinaryOp(%s, %s, %s)' % (self.left.rep(), self.operator, self.right.rep())
 
 
 
@@ -227,6 +271,9 @@ class Not(BaseBox):
             return Boolean(not result.value)
         raise LogicError("Cannot 'not' that")
 
+    def rep(self):
+        return 'Not(%s)' % (self.value.rep())
+
 
 
 class FromImport(BaseBox):
@@ -235,19 +282,25 @@ class FromImport(BaseBox):
         self.args = args
 
     def eval(self, env):
-        print("from " + str(self.repo))
-        print("import")
+        #print("from " + str(self.repo))
+        #print("import")
         self.args.eval(env)
         #raise LogicError("Cannot assign to this")
+    
+    def rep(self):
+        return 'From(%s) Import(%s)' % (self.repo, self.args.rep())
 
 class Import(BaseBox):
     def __init__(self, args):
         self.args = args
 
     def eval(self, env):
-        print("import ")
+        #print("import ")
         self.args.eval(env)
         #raise LogicError("Cannot assign to this")
+
+    def rep(self):
+        return 'Import(%s)' % (self.args.rep())
 
     
 class FunctionDeclaration(BaseBox):
@@ -257,9 +310,23 @@ class FunctionDeclaration(BaseBox):
         self.block = block
 
     def eval(self, env):
-        print("def " + str(self.name))
+        #print("def " + str(self.name))
         self.block.eval(env)
         #raise LogicError("Cannot assign to this")
+    
+    def rep(self):
+        result = 'FunctionDeclaration %s (' % self.name
+        if isinstance(self.args, Array):
+            for statement in self.args.get_statements():
+                result += ' ' + statement.rep()
+        result += ')'
+        result += '\t(\n'
+
+        #if isinstance(self.args, Block):
+        for statement in self.block.get_statements():
+            result += '\n\t' + statement.rep()
+        result += '\n)'
+        return result
 
     def to_string(self):
         return "<function '%s'>" % self.name
@@ -269,24 +336,32 @@ class BinaryOp(BaseBox):
     def __init__(self, left, right):
         self.left = left
         self.right = right
+
+    def rep(self):
+        return 'BinaryOp(%s, %s)' % (self.left.rep(), self.right.rep())
+
+
     
 class Assignment(BinaryOp):
     def eval(self, env):
         if isinstance(self.left, Variable):
             if type(self.right) is BinaryOperation:
                 env.variables[self.left.getname()] = self.right.eval(env)
-                print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.eval(env)))
+                #print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.eval(env)))
             elif type(self.right) is Variable:
                 env.variables[self.left.getname()] = self.right.eval(env)
-                print("ASSIGNMENT: " + str(self.left.getname()) +" = " + str(self.right.eval(env)))
+                #print("ASSIGNMENT: " + str(self.left.getname()) +" = " + str(self.right.eval(env)))
             else:
                 env.variables[self.left.getname()] = self.right.value
-                print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.value))
+                #print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.value))
             return self.right.eval(env)
             # otherwise raise error
             #raise ImmutableError(self.left.getname())
         else:
             raise LogicError("Cannot assign to this")
+    
+    def rep(self):
+        return 'Assignment(%s, %s)' % (self.left.rep(), self.right.rep())
 
 
 class Call(BaseBox):
@@ -297,7 +372,7 @@ class Call(BaseBox):
 
     def eval(self, env):
         result = Null()
-        print("CALL: " + str(self.name), str(self.args.get_statements()))
+        #print("CALL: " + str(self.name), str(self.args.get_statements()))
         return result
 
     def rep(self):
@@ -321,15 +396,10 @@ class Return(BaseBox):
         return self.value.eval(env)
 
     def rep(self):
-        result = 'Return %s (' % self.name
-        if isinstance(self.args, Array):
-            for statement in self.args.get_statements():
-                result += ' ' + statement.rep()
-        result += ')'
-        return result
+        return 'Return(%s)' % (self.value.rep())
 
     def to_string(self):
-        return "<call '%s'>" % self.name
+        return "<return '%s'>" % self.name
 
 
 
@@ -341,7 +411,7 @@ class If(BaseBox):
 
     def eval(self, env):
         condition = self.condition.eval(env)
-        print("IF Condition: " + str(self.condition.left.eval(env)) + " " + str(self.condition.operator) +" " + str(self.condition.right.eval(env)))
+        #print("IF Condition: " + str(self.condition.left.eval(env)) + " " + str(self.condition.operator) +" " + str(self.condition.right.eval(env)))
         if condition:
         #if Boolean(True).equals(condition).value:
             return self.body.eval(env)
@@ -351,7 +421,7 @@ class If(BaseBox):
         return Null()
 
     def rep(self):
-        return 'If(%s) Then(%s) Else(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
+        return 'If(%s) \n\t\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
 
 
 class While(BaseBox):
@@ -363,7 +433,7 @@ class While(BaseBox):
         #condition = self.condition.eval(env)
         i = 0
         while True:
-            print("     WHILE:  " + "Condition:" + str(self.condition.eval(env)) + "  Interation Num: " + str(i))
+            #print("     WHILE:  " + "Condition:" + str(self.condition.eval(env)) + "  Interation Num: " + str(i))
             if not self.condition.eval(env):
                 break
             if i > 12: break

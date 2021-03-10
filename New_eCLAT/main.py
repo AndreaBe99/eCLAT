@@ -100,7 +100,7 @@ def detect_indent(lexer, source):
             
             text = text + line + " _dedent"*dedent_number + "\n"
         #print((1+line_num), line)
-    print(text)
+    #print(text)
     return lexer.lex(text)
 
 

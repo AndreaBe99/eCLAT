@@ -9,5 +9,7 @@ def myChain():
     i = 0
     if ip_type == 0xcafe:
         res = encap(encap_param)
-        if res == true: monitor()
-        else: i = 1
+        if res == true: 
+            monitor()
+        else: 
+            return

@@ -100,6 +100,8 @@ class Parser():
         def statement_func_noargs(p):
             return FunctionDeclaration(p[1].getstr(), Null(), p[6])
         
+
+        ########## GESTIRE INIZIO E FINE BLOCCO IF-ELSE ####################
         # @self.pg.production('expression : IF expression : statement ELSE : statement')
         # def expression_if_else_single_line(p):
         #     return If(condition=p[1], body=p[3], else_body=p[6])
