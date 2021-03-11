@@ -105,8 +105,8 @@ def detect_indent(lexer, source):
 
 
 
-#run_file("test.eclat")
-
+run_file("test.eclat")
+"""
 def show_chain():
     print("Show Chain")
 
@@ -210,3 +210,4 @@ if __name__ == '__main__':
             flush_chain_name(args.name)
         elif args.flush:
             flush_chain()   
+"""

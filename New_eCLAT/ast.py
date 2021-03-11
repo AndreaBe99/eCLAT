@@ -48,7 +48,7 @@ class Block(BaseBox):
         result = 'Block('
         for statement in self.statements:
             result += '\n\t' + statement.rep()
-        result += '\n)'
+        result += '\n\t)'
         return result
 
 
@@ -253,6 +253,17 @@ class BinaryOperation():
             one = self.left.eval(env).equals(Boolean(True))
             two = self.right.eval(env).equals(Boolean(True))
             return Boolean(one.value or two.value)
+        ### BITWISE OPERATION #####
+        elif self.operator == '&':
+            return int(self.left.eval(env)) & int(self.right.eval(env))
+        elif self.operator == '|':
+            return int(self.left.eval(env)) | int(self.right.eval(env))
+        elif self.operator == '^':
+            return int(self.left.eval(env)) ^ int(self.right.eval(env))
+        elif self.operator == '<<':
+            return int(self.left.eval(env)) << int(self.right.eval(env))
+        elif self.operator == '>>':
+            return int(self.left.eval(env)) >> int(self.right.eval(env))
         else:
             raise Exception("Shouldn't be possible")
     
@@ -273,6 +284,19 @@ class Not(BaseBox):
 
     def rep(self):
         return 'Not(%s)' % (self.value.rep())
+
+
+class BitWise_Not(BaseBox):
+    def __init__(self, value):
+        self.value = value
+
+    def eval(self, env):
+        result = self.value.eval(env)
+        return ~bin(result.value)
+        raise LogicError("Cannot 'not' that")
+
+    def rep(self):
+        return 'BitWise_Not(%s)' % (self.value.rep())
 
 
 
@@ -421,7 +445,7 @@ class If(BaseBox):
         return Null()
 
     def rep(self):
-        return 'If(%s) \n\t\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
+        return 'If(%s) \n\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
 
 
 class While(BaseBox):

@@ -8,15 +8,4 @@ encap_param = 1
 def myChain():
     ip_type = 0xcafe
     j = (4 + 3) * 2
-    x = 4 + 3 * 2
-    i = 0
-    if  ip_type == 0xcafe: 
-        x = 0
-        i = i + encap_config
-    if x == 0: 
-        x = 2
-    else: 
-        x = 0
-        j = 0
-    while i < 7:
-        i = i + 1
+    x = 5 << 2
