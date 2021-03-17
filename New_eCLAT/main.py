@@ -77,7 +77,7 @@ def detect_indent(lexer, source):
                     indent_number -= 4
                     indent_stack.pop()
                     dedent_number += 1
-                line = " _dedent"*dedent_number + line
+                line = " _dedent "*dedent_number + line
                 dedent_number = 0
             
             # Se è la riga successiva al Block aggiungi il token INDENT    
@@ -98,14 +98,14 @@ def detect_indent(lexer, source):
                     indent_stack.pop()
                     dedent_number += 1
             
-            text = text + line + " _dedent"*dedent_number + "\n"
+            text = text + line + " _dedent "*dedent_number + "\n"
         #print((1+line_num), line)
     #print(text)
     return lexer.lex(text)
 
 
 
-run_file("test.eclat")
+run_file("test2.eclat")
 """
 def show_chain():
     print("Show Chain")

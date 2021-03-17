@@ -1,6 +1,26 @@
+import ast
+from re import A
 from rply.token import BaseBox
 from integer import Integer
+import csv
 
+### CLASSE DI APPOGGIO PER SCRIVERE LE DICHIARAZIONI ###
+class Appoggio():
+    in_function = False
+    variable = {}
+
+###### FUNZIONE PROVVISORIA ########
+def find_Program(statement, mod):
+    result = ''
+    with open("eclat_program_list.csv", mode='r') as csv_file:
+        str = csv.reader(csv_file, delimiter=';')
+        for row in str:
+            if statement == row[0]:
+                if mod == "1":
+                    return row[1]
+                if mod == "2":
+                    return row[1] + ' ' + row[2]
+    return result
 
 class Program(BaseBox):
     def __init__(self, statement):
@@ -17,9 +37,9 @@ class Program(BaseBox):
             result = statement.eval(env)
             print(statement.rep())
 
-        print("\nVARIABILI: ")
-        for var in env.variables:
-            print(var, env.variables[var])
+        #print("\nVARIABILI: ")
+        #for var in env.variables:
+        #    print(var, env.variables[var])
         return result
 
     def get_statements(self):
@@ -45,10 +65,11 @@ class Block(BaseBox):
         return result
     
     def rep(self):
-        result = 'Block('
+        #result = 'Block('
+        result = ''
         for statement in self.statements:
-            result += '\n\t' + statement.rep()
-        result += '\n\t)'
+            result += '\t' + statement.rep() + ';'
+        result += '\n\t'
         return result
 
 
@@ -115,6 +136,9 @@ class Array(BaseBox):
         return self
 
     def rep(self):
+        #result = ''
+        #for statement in self.statements:
+        #    result += '#define ' + find_Program(statement, "2") + '\n'
         result = 'Array('
         #result += ",".join(self.map(lambda x: x.rep(), self.statements))
         result += ",".join(self.map(lambda x: x, self.statements))
@@ -125,6 +149,7 @@ class Array(BaseBox):
         return '[%s]' % (", ".join(self.map(lambda x: x.to_string(), self.values)))
 
 
+
 class Null(BaseBox):
     def eval(self, env):
         return self
@@ -133,6 +158,7 @@ class Null(BaseBox):
         return 'null'
 
     def rep(self):
+        #return 'NULL'
         return 'Null()'
 
 
@@ -144,7 +170,8 @@ class Boolean(BaseBox):
         return self.value
     
     def rep(self):
-        return 'Boolean(%s)' % self.value
+        return str(self.value)
+        #return 'Boolean(%s)' % self.value
 
 
 class Integer(Integer):
@@ -158,7 +185,8 @@ class Integer(Integer):
         return str(self.value)
 
     def rep(self):
-        return 'Integer(%s)' % self.value
+        return str(self.value)
+        #return 'Integer(%s)' % self.value
 
 
 class Float(BaseBox):
@@ -172,7 +200,8 @@ class Float(BaseBox):
         return str(self.value)
 
     def rep(self):
-        return 'Float(%s)' % self.value
+        return str(self.value)
+        #return 'Float(%s)' % self.value
 
 
 class String(BaseBox):
@@ -186,7 +215,8 @@ class String(BaseBox):
         return '"%s"' % str(self.value)
 
     def rep(self):
-        return 'String("%s")' % self.value
+        return str(self.value)
+        #return 'String("%s")' % self.value
 
 
 
@@ -210,7 +240,8 @@ class Variable(BaseBox):
         return str(self.name)
 
     def rep(self):
-        return 'Variable(%s)' % self.name
+        return self.name
+        #return 'Variable(%s)' % self.name
 
 
 
@@ -268,7 +299,8 @@ class BinaryOperation():
             raise Exception("Shouldn't be possible")
     
     def rep(self):
-        return 'BinaryOp(%s, %s, %s)' % (self.left.rep(), self.operator, self.right.rep())
+        return ' ' + self.left.rep() + ' ' + self.operator + ' ' + self.right.rep() + ' '
+        #return 'BinaryOp(%s, %s, %s)' % (self.left.rep(), self.operator, self.right.rep())
 
 
 
@@ -312,7 +344,12 @@ class FromImport(BaseBox):
         #raise LogicError("Cannot assign to this")
     
     def rep(self):
-        return 'From(%s) Import(%s)' % (self.repo, self.args.rep())
+        result = ''
+        for statement in self.args.get_statements():
+            result += '#define ' + find_Program(statement, "2") + '\n'
+        return result
+        return self.args.rep()
+        #return 'From(%s) Import(%s)' % (self.repo, self.args.rep())
 
 class Import(BaseBox):
     def __init__(self, args):
@@ -335,21 +372,28 @@ class FunctionDeclaration(BaseBox):
 
     def eval(self, env):
         #print("def " + str(self.name))
+        Appoggio.in_function = True
         self.block.eval(env)
+        Appoggio.in_function = False
         #raise LogicError("Cannot assign to this")
     
     def rep(self):
-        result = 'FunctionDeclaration %s (' % self.name
-        if isinstance(self.args, Array):
-            for statement in self.args.get_statements():
-                result += ' ' + statement.rep()
-        result += ')'
-        result += '\t(\n'
+        result = '__section("__trp_chain_' + self.name + '")\n'
+        result += 'int __trp_chain_' + self.name + '(void) {\n'
+        #result = 'FunctionDeclaration %s (' % self.name
+        #if isinstance(self.args, Array):
+        #    for statement in self.args.get_statements():
+        #        result += ' ' + statement.rep()
+        #result += ')'
+        #result += '\t(\n'
 
         #if isinstance(self.args, Block):
         for statement in self.block.get_statements():
             result += '\n\t' + statement.rep()
-        result += '\n)'
+            if result[-1] != '{' and result[-1] != '}':
+                result += ';'
+        result += '\n\treturn XDP_DROP;'
+        result += '\n}'
         return result
 
     def to_string(self):
@@ -368,6 +412,12 @@ class BinaryOp(BaseBox):
     
 class Assignment(BinaryOp):
     def eval(self, env):
+        #print(env.variables[self.left.getname()])
+        if env.variables.get(self.left.getname(), None) is None:
+            if not Appoggio.in_function:
+                Appoggio.variable[self.left.getname()] = '#define ' + self.left.getname() + ' ' + str(self.right.eval(env)) + '\n'
+            else:
+                Appoggio.variable[self.left.getname()] = '__u64 ' + self.left.getname() + ';' 
         if isinstance(self.left, Variable):
             if type(self.right) is BinaryOperation:
                 env.variables[self.left.getname()] = self.right.eval(env)
@@ -385,7 +435,12 @@ class Assignment(BinaryOp):
             raise LogicError("Cannot assign to this")
     
     def rep(self):
-        return 'Assignment(%s, %s)' % (self.left.rep(), self.right.rep())
+        if Appoggio.variable[self.left.getname()][0] == '#':
+            return Appoggio.variable[self.left.getname()]
+        #result = Appoggio.variable + '\n'
+        result = Appoggio.variable[self.left.getname()]  + ' ' + self.left.rep() + ' = ' + self.right.rep()
+        return result
+        #return 'Assignment(%s, %s)' % (self.left.rep(), self.right.rep())
 
 
 class Call(BaseBox):
@@ -400,12 +455,17 @@ class Call(BaseBox):
         return result
 
     def rep(self):
-        result = 'Call %s (' % self.name
-        if isinstance(self.args, Array):
-            for statement in self.args.get_statements():
-                result += ' ' + statement.rep()
+        #result = 'Call %s (' % self.name
+        result = ''
+        param_number = 0
+        #if isinstance(self.args, Array):
+        for statement in self.args.get_statements():
+            param_number += 1
+            result += ' ' + statement.rep()
         result += ')'
-        return result
+        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + ', ' + result
+        return call
+
 
     def to_string(self):
         return "<call '%s'>" % self.name
@@ -445,7 +505,11 @@ class If(BaseBox):
         return Null()
 
     def rep(self):
-        return 'If(%s) \n\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
+        result = 'if (' + self.condition.rep() + ') {\n\t' + self.body.rep() + '}'
+        if type(self.else_body) is not Null:
+            result += ' \telse {' + self.else_body.rep() + '}'
+        return result
+        #return 'If(%s) \n\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
 
 
 class While(BaseBox):
