@@ -7,7 +7,9 @@ import csv
 ### CLASSE DI APPOGGIO PER SCRIVERE LE DICHIARAZIONI ###
 class Appoggio():
     in_function = False
-    variable = {}
+    variabili_locali = {}
+    variabili_globali = {}
+    indent_level = 0
 
 ###### FUNZIONE PROVVISORIA ########
 def find_Program(statement, mod):
@@ -33,13 +35,18 @@ class Program(BaseBox):
     def eval(self, env):
         #print "count: %s" % len(self.statements)
         result = None
+        output = ""
         for statement in self.statements:
             result = statement.eval(env)
-            print(statement.rep())
+            output += statement.rep()
+        print(output)
 
         #print("\nVARIABILI: ")
         #for var in env.variables:
         #    print(var, env.variables[var])
+        f = open("output.c", "w")
+        f.write(output)
+        f.close()
         return result
 
     def get_statements(self):
@@ -65,11 +72,14 @@ class Block(BaseBox):
         return result
     
     def rep(self):
-        #result = 'Block('
         result = ''
+        Appoggio.indent_level += 1
         for statement in self.statements:
-            result += '\t' + statement.rep() + ';'
-        result += '\n\t'
+            result += '\t'*Appoggio.indent_level + statement.rep() #+ ';'
+            if result[-1] != '{' and result[-1] != '}':
+                result += ';'
+            result += '\n'
+        Appoggio.indent_level -= 1
         return result
 
 
@@ -315,7 +325,7 @@ class Not(BaseBox):
         raise LogicError("Cannot 'not' that")
 
     def rep(self):
-        return 'Not(%s)' % (self.value.rep())
+        return 'not%s ' % (self.value.rep())
 
 
 class BitWise_Not(BaseBox):
@@ -361,6 +371,10 @@ class Import(BaseBox):
         #raise LogicError("Cannot assign to this")
 
     def rep(self):
+        result = ''
+        for statement in self.args.get_statements():
+            result += '#define ' + find_Program(statement, "2") + '\n'
+        return result
         return 'Import(%s)' % (self.args.rep())
 
     
@@ -371,14 +385,13 @@ class FunctionDeclaration(BaseBox):
         self.block = block
 
     def eval(self, env):
-        #print("def " + str(self.name))
-        Appoggio.in_function = True
+        #print("def " + str(self.name))       
         self.block.eval(env)
-        Appoggio.in_function = False
         #raise LogicError("Cannot assign to this")
     
     def rep(self):
-        result = '__section("__trp_chain_' + self.name + '")\n'
+        Appoggio.in_function = True
+        result = '\n__section("__trp_chain_' + self.name + '")\n'
         result += 'int __trp_chain_' + self.name + '(void) {\n'
         #result = 'FunctionDeclaration %s (' % self.name
         #if isinstance(self.args, Array):
@@ -388,12 +401,16 @@ class FunctionDeclaration(BaseBox):
         #result += '\t(\n'
 
         #if isinstance(self.args, Block):
+        Appoggio.indent_level += 1
         for statement in self.block.get_statements():
-            result += '\n\t' + statement.rep()
+            result += '\n' + '\t'*Appoggio.indent_level + statement.rep()
             if result[-1] != '{' and result[-1] != '}':
                 result += ';'
-        result += '\n\treturn XDP_DROP;'
-        result += '\n}'
+        result += '\n' + '\t'*Appoggio.indent_level + 'return XDP_DROP;'
+        result += '\n}\n'
+        Appoggio.indent_level -= 1
+        Appoggio.in_function = False
+        Appoggio.variabili_locali.clear()
         return result
 
     def to_string(self):
@@ -412,22 +429,13 @@ class BinaryOp(BaseBox):
     
 class Assignment(BinaryOp):
     def eval(self, env):
-        #print(env.variables[self.left.getname()])
-        if env.variables.get(self.left.getname(), None) is None:
-            if not Appoggio.in_function:
-                Appoggio.variable[self.left.getname()] = '#define ' + self.left.getname() + ' ' + str(self.right.eval(env)) + '\n'
-            else:
-                Appoggio.variable[self.left.getname()] = '__u64 ' + self.left.getname() + ';' 
         if isinstance(self.left, Variable):
             if type(self.right) is BinaryOperation:
                 env.variables[self.left.getname()] = self.right.eval(env)
-                #print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.eval(env)))
             elif type(self.right) is Variable:
                 env.variables[self.left.getname()] = self.right.eval(env)
-                #print("ASSIGNMENT: " + str(self.left.getname()) +" = " + str(self.right.eval(env)))
             else:
                 env.variables[self.left.getname()] = self.right.value
-                #print("ASSIGNMENT: " + str(self.left.getname()) + " = " + str(self.right.value))
             return self.right.eval(env)
             # otherwise raise error
             #raise ImmutableError(self.left.getname())
@@ -435,11 +443,17 @@ class Assignment(BinaryOp):
             raise LogicError("Cannot assign to this")
     
     def rep(self):
-        if Appoggio.variable[self.left.getname()][0] == '#':
-            return Appoggio.variable[self.left.getname()]
-        #result = Appoggio.variable + '\n'
-        result = Appoggio.variable[self.left.getname()]  + ' ' + self.left.rep() + ' = ' + self.right.rep()
-        return result
+        if not Appoggio.in_function:
+            if not (self.left.getname() in Appoggio.variabili_globali):
+                Appoggio.variabili_globali[self.left.getname()] = '#define ' + self.left.getname() + ' ' + str(self.right) + '\n'
+                return Appoggio.variabili_globali[self.left.getname()]
+        else:
+            if not (self.left.getname() in Appoggio.variabili_locali):
+                Appoggio.variabili_locali[self.left.getname()] = '__u64 ' + self.left.getname() #+ ';' 
+                return Appoggio.variabili_locali[self.left.getname()] + ' = ' + self.right.rep()
+            else:
+                return self.left.getname() + ' = ' + self.right.rep()
+        raise Exception("ERRORE: Variabile")
         #return 'Assignment(%s, %s)' % (self.left.rep(), self.right.rep())
 
 
@@ -451,7 +465,6 @@ class Call(BaseBox):
 
     def eval(self, env):
         result = Null()
-        #print("CALL: " + str(self.name), str(self.args.get_statements()))
         return result
 
     def rep(self):
@@ -461,9 +474,9 @@ class Call(BaseBox):
         #if isinstance(self.args, Array):
         for statement in self.args.get_statements():
             param_number += 1
-            result += ' ' + statement.rep()
+            result += ', ' + statement.rep()
         result += ')'
-        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + ', ' + result
+        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + result
         return call
 
 
@@ -476,11 +489,10 @@ class Return(BaseBox):
         self.value = value
 
     def eval(self, env):
-        print("RETURN: " + str(self.value.eval(env)))
         return self.value.eval(env)
 
     def rep(self):
-        return 'Return(%s)' % (self.value.rep())
+        return 'return %s ' % (self.value.rep())
 
     def to_string(self):
         return "<return '%s'>" % self.name
@@ -505,9 +517,9 @@ class If(BaseBox):
         return Null()
 
     def rep(self):
-        result = 'if (' + self.condition.rep() + ') {\n\t' + self.body.rep() + '}'
+        result = 'if (' + self.condition.rep() + ') {\n' + self.body.rep() + Appoggio.indent_level*'\t' + '}'
         if type(self.else_body) is not Null:
-            result += ' \telse {' + self.else_body.rep() + '}'
+            result += '\n' + Appoggio.indent_level*'\t' +'else {\n' + self.else_body.rep() + Appoggio.indent_level*'\t' +'}'
         return result
         #return 'If(%s) \n\tThen(%s) \tElse(%s)' % (self.condition.rep(), self.body.rep(), self.else_body.rep())
 
@@ -521,13 +533,15 @@ class While(BaseBox):
         #condition = self.condition.eval(env)
         i = 0
         while True:
-            #print("     WHILE:  " + "Condition:" + str(self.condition.eval(env)) + "  Interation Num: " + str(i))
             if not self.condition.eval(env):
                 break
-            if i > 12: break
+            #if i > 12: break
             i += 1
             self.body.eval(env)
         return Null()
 
     def rep(self):
-        return 'While(%s) Then(%s)' % (self.condition.rep(), self.body.rep())
+        #Appoggio.indent_level += 1
+        result = 'while (' + self.condition.rep() + ') {\n' + self.body.rep() + Appoggio.indent_level*'\t' + '}'
+        return result
+        #return 'while ( %s ) { \n %s \n}' % (self.condition.rep(), self.body.rep())

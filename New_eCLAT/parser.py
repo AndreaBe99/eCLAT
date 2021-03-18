@@ -54,7 +54,7 @@ class Parser():
 
 
         @self.pg.production('statement_full : statement NEWLINE')
-        #@self.pg.production('statement_full : statement $end')
+        @self.pg.production('statement_full : statement $end')
         @self.pg.production('statement_full : statement')
         def statement_full(p):
             return p[0]

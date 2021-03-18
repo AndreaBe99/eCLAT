@@ -38,6 +38,7 @@ class Lexer():
                 #self.lexer.add(exec("'" + row[0] + "'"), exec(row[1]))
                 token_list.append(row[0])
                 exec("self.lexer.add('" + row[0] + "', " + row[1] + ")")
+        token_list.append('$end')
 
         # Ignore spaces
         self.lexer.ignore('[ \t\r\f\v]+')
