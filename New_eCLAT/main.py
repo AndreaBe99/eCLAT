@@ -79,10 +79,12 @@ def detect_indent(lexer, source):
                     dedent_number += 1
                 line = " _dedent "*dedent_number + line
                 dedent_number = 0
+            else: 
+                raise IndentationError("at line " + str(1+line_num))
             
             # Se è la riga successiva al Block aggiungi il token INDENT    
             if block:
-                line = "_indent" + line
+                line = " _indent " + line
                 indent_stack.append(indent_number)
                 block = False
             

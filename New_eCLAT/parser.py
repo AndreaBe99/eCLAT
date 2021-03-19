@@ -172,17 +172,14 @@ class Parser():
 
         @self.pg.production('expression : IDENTIFIER')
         def expression_call_noargs(p):
-            # cannot return the value of a variable if it isn't yet defined
             return Variable(p[0].getstr())
 
         @self.pg.production('expression : IDENTIFIER ( )')
         def expression_call_noargs(p):
-            # cannot return the value of a variable if it isn't yet defined
             return Call(p[0].getstr(), InnerArray())
 
         @self.pg.production('expression : IDENTIFIER ( expressionlist )')
         def expression_call_args(p):
-            # cannot return the value of a variable if it isn't yet defined
             return Call(p[0].getstr(), p[2])
         
         @self.pg.production('expression : [ expression ]')
