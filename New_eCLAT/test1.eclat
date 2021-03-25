@@ -12,7 +12,3 @@ def myChain1():
     if b == 0x15:
         fake_prog(0)
     return a
-
-def myChain2():
-    a = encap(0x01)
-    myChain1()

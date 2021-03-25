@@ -177,10 +177,18 @@ class Parser():
         @self.pg.production('expression : IDENTIFIER ( )')
         def expression_call_noargs(p):
             return Call(p[0].getstr(), InnerArray())
+        
+        @self.pg.production('expression : IDENTIFIER . IDENTIFIER ( )')
+        def expression_call_fun_noargs(p):
+            return Call(p[0].getstr() + p[1].getstr() + p[2].getstr(), InnerArray())
 
         @self.pg.production('expression : IDENTIFIER ( expressionlist )')
         def expression_call_args(p):
             return Call(p[0].getstr(), p[2])
+        
+        @self.pg.production('expression : IDENTIFIER . IDENTIFIER ( expressionlist )')
+        def expression_call_fun_noargs(p):
+            return Call(p[0].getstr() + p[1].getstr() + p[2].getstr(), p[4])
         
         @self.pg.production('expression : [ expression ]')
         def expression_array_single(p):

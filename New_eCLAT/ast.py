@@ -3,13 +3,25 @@ from re import A
 from rply.token import BaseBox
 from integer import Integer
 import csv
+from random import randint
 
 ### CLASSE DI APPOGGIO PER SCRIVERE LE DICHIARAZIONI ###
 class Appoggio():
     in_function = False
+    define_function = {}
+    define_function_number = 0
     variabili_locali = {}
     variabili_globali = {}
-    funzioni = {}
+    funzioni = {
+        #"Packet.readU8": "bpf_ntohs(__READ_PACKET(__be8",
+        "Packet.readU16": "bpf_ntohs(__READ_PACKET(__be16",
+        "Packet.readU32": "bpf_ntohl(__READ_PACKET(__be32",
+        #"Packet.readU64": "bpf_ntohs(__READ_PACKET(__be64",
+        "Packet.writeU8": "__WRITE_PACKET(__u8",
+        #"Packet.writeU16": "__WRITE_PACKET(__u16",
+        #"Packet.writeU32": "__WRITE_PACKET(__u32",
+        #"Packet.writeU64": "__WRITE_PACKET(__u64",
+    }
     indent_level = 0
 
 ###### FUNZIONE PROVVISORIA ########
@@ -23,7 +35,7 @@ def find_Program(statement, mod):
                     return row[1]
                 if mod == "2":
                     return row[1] + ' ' + row[2]
-    return result
+    raise Exception("\"" + statement +"\" Hike Program not defined")
 
 class Program(BaseBox):
     def __init__(self, statement):
@@ -34,12 +46,16 @@ class Program(BaseBox):
         self.statements.insert(0, statement)
 
     def eval(self, env):
-        #print "count: %s" % len(self.statements)
         result = None
         output = ""
+        define_function_list = ""
         for statement in self.statements:
             result = statement.eval(env)
             output += statement.to_c()
+        
+        for define in Appoggio.define_function:
+            define_function_list += Appoggio.define_function[define] + "\n"
+        output = define_function_list + output
         print(output)
 
         #print("\nVARIABILI: ")
@@ -65,7 +81,6 @@ class Block(BaseBox):
         return self.statements
     
     def eval(self, env):
-        #print "count: %s" % len(self.statements)
         result = None
         for statement in self.statements:
             result = statement.eval(env)
@@ -374,6 +389,11 @@ class FunctionDeclaration(BaseBox):
         Appoggio.in_function = True
         if self.name in Appoggio.funzioni:
             raise Exception(self.name + " function already defined.")
+        
+        Appoggio.define_function[self.name] = "#define " + self.name.upper() + " " + str(Appoggio.define_function_number)
+        Appoggio.define_function_number += 1
+        Appoggio.funzioni[self.name] = self.name.upper()
+
         res = '\n__section("__trp_chain_' + self.name + '")\n'
         res += 'int __trp_chain_' + self.name + '(void) {\n'
 
@@ -403,14 +423,14 @@ class FunctionDeclaration(BaseBox):
             variabili += '\t'*Appoggio.indent_level + Appoggio.variabili_locali[var]
 
         # Salvo il contenuto C nel dict
-        Appoggio.funzioni[self.name] = (variabili + result).replace("\t", "", 1)
+        #Appoggio.funzioni[self.name] = (variabili + result).replace("\t", "", 1)
 
         # RETURN statement trovato
         if return_presente:
             result += '\n' + '\t'*Appoggio.indent_level
         # RETURN statement NON trovato metto RETURN XDP_DROP di default
         else:
-            result += '\n' + '\t'*Appoggio.indent_level + 'return XDP_DROP;'
+            result += '\n' + '\t'*Appoggio.indent_level + 'return XDP_ABORTED;'
         result += '\n}\n'
 
         result = res + variabili + result
@@ -473,8 +493,6 @@ class Call(BaseBox):
         return result
 
     def to_c(self):
-        if self.name in Appoggio.funzioni:
-            return Appoggio.funzioni[self.name]
         result = ''
         param_number = 0
         #if isinstance(self.args, Array):
@@ -486,7 +504,15 @@ class Call(BaseBox):
             else: 
                 result += ', ' + statement.to_c()
         result += ')'
-        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + result
+        
+        if self.name in Appoggio.funzioni:
+            if self.name[:12] == "Packet.write":
+                return Appoggio.funzioni[self.name] + result
+            if self.name[:11] == "Packet.read":
+                return Appoggio.funzioni[self.name] + result + ')'
+            return 'hike_call_' + str(param_number) + '(' + Appoggio.funzioni[self.name]  + result  
+
+        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + result    
         return call
 
 

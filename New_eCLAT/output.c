@@ -1,41 +1,30 @@
-#define ENCAP_PROG_ID 0x0000f00l
-#define MONITOR_PROG_ID 0x00008bad
-#define ROUTING_PROG_ID 0x0000cafe
-#define FAST_NO_KERNEL 1
+#define MYCHAIN1 0
+#define MYCHAIN0 1
+#define HIKE_EBPF_PROG_DROP_ANY 12
+#define HIKE_EBPF_PROG_ALLOW_ANY 11
 
-__section("__trp_chain_myChain1")
-int __trp_chain_myChain1(void) {
-	__u64 a;
-	__u64 b;
+__section("__trp_chain_mychain1")
+int __trp_chain_mychain1(void) {
+	__u64 eth_type;
+	__u64 ttl;
 
-	a = hike_call_1(ENCAP_PROG_ID, 1);
-	if ( a == 23 ) {
-		hike_call_1(MONITOR_PROG_ID, 2);
+	eth_type = bpf_ntohs(__READ_PACKET(__be16, 12));
+	if ( eth_type == 34525 ) {
+		hike_call_1(HIKE_EBPF_PROG_DROP_ANY, eth_type);
+		return XDP_ABORTED;
 	}
-	b = hike_call_1(ROUTING_PROG_ID, FAST_NO_KERNEL);
-	if ( b == 21 ) {
-		hike_call_1(FAKE_PROG_ID, 0);
+	ttl = 64;
+	if ( eth_type == 2048 ) {
+		__WRITE_PACKET(__u8, ttl, 22);
 	}
-	return a;
-	
+	hike_call_1(HIKE_EBPF_PROG_ALLOW_ANY, eth_type);
+	return XDP_ABORTED;
 }
 
-__section("__trp_chain_myChain2")
-int __trp_chain_myChain2(void) {
-	__u64 a;
+__section("__trp_chain_mychain0")
+int __trp_chain_mychain0(void) {
 
-	a = hike_call_1(ENCAP_PROG_ID, 1);
-	__u64 a;
-	__u64 b;
-
-	a = hike_call_1(ENCAP_PROG_ID, 1);
-	if ( a == 23 ) {
-		hike_call_1(MONITOR_PROG_ID, 2);
-	}
-	b = hike_call_1(ROUTING_PROG_ID, FAST_NO_KERNEL);
-	if ( b == 21 ) {
-		hike_call_1(FAKE_PROG_ID, 0);
-	}
-	return a;
-	return XDP_DROP;
+	hike_call_0(HIKE_EBPF_PROG_ALLOW_ANY);
+	hike_call_0(MYCHAIN1);
+	return XDP_ABORTED;
 }
