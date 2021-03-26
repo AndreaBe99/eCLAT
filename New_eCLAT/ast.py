@@ -55,7 +55,7 @@ class Program(BaseBox):
         
         for define in Appoggio.define_function:
             define_function_list += Appoggio.define_function[define] + "\n"
-        output = define_function_list + output
+        output = "#include <hike_vm.h>\n" + define_function_list + output
         print(output)
 
         #print("\nVARIABILI: ")
@@ -422,9 +422,6 @@ class FunctionDeclaration(BaseBox):
         for var in Appoggio.variabili_locali:
             variabili += '\t'*Appoggio.indent_level + Appoggio.variabili_locali[var]
 
-        # Salvo il contenuto C nel dict
-        #Appoggio.funzioni[self.name] = (variabili + result).replace("\t", "", 1)
-
         # RETURN statement trovato
         if return_presente:
             result += '\n' + '\t'*Appoggio.indent_level
@@ -476,7 +473,7 @@ class Assignment(BinaryOp):
                 return Appoggio.variabili_globali[self.left.getname()]
         else:
             if not (self.left.getname() in Appoggio.variabili_locali):
-                Appoggio.variabili_locali[self.left.getname()] = '__u64 ' + self.left.getname() + ';\n' 
+                Appoggio.variabili_locali[self.left.getname()] = '__s64 ' + self.left.getname() + ';\n' 
                 #return Appoggio.variabili_locali[self.left.getname()] + ' = ' + self.right.to_c()    
             return self.left.getname() + ' = ' + self.right.to_c()
         raise Exception("ERRORE: Variabile")
@@ -494,7 +491,7 @@ class Call(BaseBox):
 
     def to_c(self):
         result = ''
-        param_number = 0
+        param_number = 1
         #if isinstance(self.args, Array):
         for statement in self.args.get_statements():
             param_number += 1

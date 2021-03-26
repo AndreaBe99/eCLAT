@@ -13,6 +13,6 @@ def mychain1():
         Packet.writeU8(ttl,22)  
     allow(eth_type)
 
-def mychain0():
+def mychain2():
     allow()
     mychain1()
