@@ -1,5 +1,5 @@
 import ast
-from re import A
+from re import A, S
 from rply.token import BaseBox
 from integer import Integer
 import csv
@@ -37,6 +37,7 @@ def find_Program(statement, mod):
                     return row[1] + ' ' + row[2]
     raise Exception("\"" + statement +"\" Hike Program not defined")
 
+
 class Program(BaseBox):
     def __init__(self, statement):
         self.statements = []
@@ -69,6 +70,7 @@ class Program(BaseBox):
     def get_statements(self):
         return self.statements
 
+
 class Block(BaseBox):
     def __init__(self, statement):
         self.statements = []
@@ -88,6 +90,8 @@ class Block(BaseBox):
         return result
     
     def to_c(self):
+        num_var = len(Appoggio.variabili_locali)
+
         result = ''
         Appoggio.indent_level += 1
         for statement in self.statements:
@@ -95,80 +99,15 @@ class Block(BaseBox):
             if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
                 result += ';'
             result += '\n'
+        
+
+        variabili = ''
+        num_var_add = len(Appoggio.variabili_locali) - num_var
+        for i in range(num_var_add):
+            variabili += '\t'*Appoggio.indent_level + str(Appoggio.variabili_locali.popitem()[1])
+
         Appoggio.indent_level -= 1
-        return result
-
-
-class InnerArray(BaseBox):
-    def __init__(self, statements=None):
-        self.statements = []
-        self.values = []
-        if statements:
-            self.statements = statements
-
-    def push(self, statement):
-        self.statements.insert(0, statement)
-
-    def append(self, statement):
-        self.statements.append(statement)
-
-    def extend(self, statements):
-        self.statements.extend(statements)
-
-    def get_statements(self):
-        return self.statements
-
-
-class Array(BaseBox):
-    def map(self, fun, ls):
-        nls = []
-        for l in ls:
-            nls.append(fun(l))
-        return nls
-
-    def __init__(self, inner):
-        self.statements = inner.get_statements()
-        self.values = []
-
-    def get_statements(self):
-        return self.statements
-
-    def push(self, statement):
-        self.statements.insert(0, statement)
-
-    def append(self, statement):
-        self.statements.append(statement)
-
-    def index(self, i):
-        if type(i) is Integer:
-            return self.values[i.value]
-        if type(i) is Float:
-            raise LogicError("Cannot index with that value")
-
-    def add(self, right):
-        if type(right) is Array:
-            result = Array(InnerArray())
-            result.values.extend(self.values)
-            result.values.extend(right.values)
-            return result
-        raise LogicError("Cannot add that to array")
-
-    def eval(self, env):
-        if len(self.values) == 0:
-            for statement in self.statements:
-                #self.values.append(statement.eval(env))
-                self.values.append(statement)
-        return self
-
-    def to_c(self):
-        result = '['
-        #result += ",".join(self.map(lambda x: x.to_c(), self.statements))
-        result += ",".join(self.map(lambda x: x, self.statements))
-        result += ']'
-        return result
-
-    def to_string(self):
-        return '[%s]' % (", ".join(self.map(lambda x: x.to_string(), self.values)))
+        return variabili + result
 
 
 
@@ -256,7 +195,10 @@ class Variable(BaseBox):
         return str(self.name)
 
     def to_c(self):
-        return self.name
+        if self.name in Appoggio.variabili_locali or self.name in Appoggio.variabili_locali:
+            return self.name
+        else:
+            raise Exception("Variable \"" + str(self.name) + "\" not declared")
 
 
 
@@ -525,6 +467,8 @@ class Return(BaseBox):
         return self.value.eval(env)
 
     def to_c(self):
+        if self.value.to_c() == "Null()":
+            return "return XDP_ABORTED"
         return 'return %s' % (self.value.to_c())
 
     def to_string(self):
@@ -571,3 +515,75 @@ class While(BaseBox):
     def to_c(self):
         result = 'while (' + self.condition.to_c() + ') {\n' + self.body.to_c() + Appoggio.indent_level*'\t' + '}'
         return result
+
+
+class InnerArray(BaseBox):
+    def __init__(self, statements=None):
+        self.statements = []
+        self.values = []
+        if statements:
+            self.statements = statements
+
+    def push(self, statement):
+        self.statements.insert(0, statement)
+
+    def append(self, statement):
+        self.statements.append(statement)
+
+    def extend(self, statements):
+        self.statements.extend(statements)
+
+    def get_statements(self):
+        return self.statements
+
+
+class Array(BaseBox):
+    def map(self, fun, ls):
+        nls = []
+        for l in ls:
+            nls.append(fun(l))
+        return nls
+
+    def __init__(self, inner):
+        self.statements = inner.get_statements()
+        self.values = []
+
+    def get_statements(self):
+        return self.statements
+
+    def push(self, statement):
+        self.statements.insert(0, statement)
+
+    def append(self, statement):
+        self.statements.append(statement)
+
+    def index(self, i):
+        if type(i) is Integer:
+            return self.values[i.value]
+        if type(i) is Float:
+            raise LogicError("Cannot index with that value")
+
+    def add(self, right):
+        if type(right) is Array:
+            result = Array(InnerArray())
+            result.values.extend(self.values)
+            result.values.extend(right.values)
+            return result
+        raise LogicError("Cannot add that to array")
+
+    def eval(self, env):
+        if len(self.values) == 0:
+            for statement in self.statements:
+                #self.values.append(statement.eval(env))
+                self.values.append(statement)
+        return self
+
+    def to_c(self):
+        result = '['
+        #result += ",".join(self.map(lambda x: x.to_c(), self.statements))
+        result += ",".join(self.map(lambda x: x, self.statements))
+        result += ']'
+        return result
+
+    def to_string(self):
+        return '[%s]' % (", ".join(self.map(lambda x: x.to_string(), self.values)))

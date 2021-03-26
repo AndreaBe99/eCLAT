@@ -6,13 +6,9 @@ def mychain1():
     
     if eth_type == 0x86dd :
         drop(eth_type)
-        return XDP_ABORTED
-    
+        return 
+
     ttl = 64 #espande in un S64
     if eth_type == 0x800 :
         Packet.writeU8(ttl,22)  
     allow(eth_type)
-
-def mychain2():
-    allow()
-    mychain1()

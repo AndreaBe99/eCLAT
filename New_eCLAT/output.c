@@ -1,6 +1,5 @@
 #include <hike_vm.h>
 #define MYCHAIN1 0
-#define MYCHAIN2 1
 #define HIKE_EBPF_PROG_DROP_ANY 12
 #define HIKE_EBPF_PROG_ALLOW_ANY 11
 
@@ -19,13 +18,5 @@ int __trp_chain_mychain1(void) {
 		__WRITE_PACKET(__u8, ttl, 22);
 	}
 	hike_call_2(HIKE_EBPF_PROG_ALLOW_ANY, eth_type);
-	return XDP_ABORTED;
-}
-
-__section("__trp_chain_mychain2")
-int __trp_chain_mychain2(void) {
-
-	hike_call_1(HIKE_EBPF_PROG_ALLOW_ANY);
-	hike_call_1(MYCHAIN1);
 	return XDP_ABORTED;
 }

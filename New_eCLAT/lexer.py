@@ -41,6 +41,7 @@ class Lexer():
         token_list.append('$end')
 
         # Ignore spaces
+        self.lexer.ignore('$end')
         self.lexer.ignore('[ \t\r\f\v]+')
 
     def get_lexer(self):
