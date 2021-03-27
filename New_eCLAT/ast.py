@@ -8,34 +8,44 @@ from random import randint
 ### CLASSE DI APPOGGIO PER SCRIVERE LE DICHIARAZIONI ###
 class Appoggio():
     in_function = False
-    define_function = {}
-    define_function_number = 0
-    variabili_locali = {}
+    #variabili_locali = {}
     variabili_globali = {}
     funzioni = {
-        #"Packet.readU8": "bpf_ntohs(__READ_PACKET(__be8",
+        "Packet.readU8": "bpf_ntohs(__READ_PACKET(__u8",
         "Packet.readU16": "bpf_ntohs(__READ_PACKET(__be16",
         "Packet.readU32": "bpf_ntohl(__READ_PACKET(__be32",
-        #"Packet.readU64": "bpf_ntohs(__READ_PACKET(__be64",
+        #"Packet.readU64": "bpf_ntohl(__READ_PACKET(__be64",
         "Packet.writeU8": "__WRITE_PACKET(__u8",
-        #"Packet.writeU16": "__WRITE_PACKET(__u16",
-        #"Packet.writeU32": "__WRITE_PACKET(__u32",
+        "Packet.writeU16": "__WRITE_PACKET(__u16",
+        "Packet.writeU32": "__WRITE_PACKET(__u32",
         #"Packet.writeU64": "__WRITE_PACKET(__u64",
     }
     indent_level = 0
 
+    funzioni_prima_passata = {}
+    current_function = ""
+
 ###### FUNZIONE PROVVISORIA ########
+# Trova il programma nei file se presente.
+## mod = 1 per quando faccio hike_call
+## mod = 2 per quando faccio l'import e quindi per scrivere i #define 
+#### in cui ho bisogno sia del nome che del numero associato
 def find_Program(statement, mod):
     result = ''
     with open("eclat_program_list.csv", mode='r') as csv_file:
-        str = csv.reader(csv_file, delimiter=';')
-        for row in str:
+        string = csv.reader(csv_file, delimiter=';')
+        for row in string:
             if statement == row[0]:
                 if mod == "1":
                     return row[1]
                 if mod == "2":
                     return row[1] + ' ' + row[2]
-    raise Exception("\"" + statement +"\" Hike Program not defined")
+    with open("regisrty.csv", mode='r') as csv_file:
+        string = csv.reader(csv_file, delimiter=';')
+        for row in string:
+            if statement == row[0]:
+                    return row[1]
+    raise Exception("\"" + statement +"\" Hike Program/Function not defined")
 
 
 class Program(BaseBox):
@@ -49,22 +59,34 @@ class Program(BaseBox):
     def eval(self, env):
         result = None
         output = ""
-        define_function_list = ""
+
+        # prima passata per "scorrere" le funzioni e le variabili
+        prima_passata = ""
+        for statement in self.statements:
+            prima_passata += statement.get_chain_variables()
+
+        count = 0
+        # Scrivo tutte le funzioni in un registry con associato un contatore
+        with open('regisrty.csv', 'w', newline='') as file:
+            writer = csv.writer(file, delimiter=';')
+            for fun in Appoggio.funzioni_prima_passata:
+                writer.writerow([str(fun), str(fun.upper()), str(count)])
+                count += 1
+
         for statement in self.statements:
             result = statement.eval(env)
             output += statement.to_c()
-        
-        for define in Appoggio.define_function:
-            define_function_list += Appoggio.define_function[define] + "\n"
-        output = "#include <hike_vm.h>\n" + define_function_list + output
+
+        output = "#include <hike_vm.h>\n" + output
         print(output)
+        f = open("output.c", "w")
+        f.write(output)
+        f.close()
 
         #print("\nVARIABILI: ")
         #for var in env.variables:
         #    print(var, env.variables[var])
-        f = open("output.c", "w")
-        f.write(output)
-        f.close()
+
         return result
 
     def get_statements(self):
@@ -90,7 +112,6 @@ class Block(BaseBox):
         return result
     
     def to_c(self):
-        num_var = len(Appoggio.variabili_locali)
 
         result = ''
         Appoggio.indent_level += 1
@@ -99,15 +120,16 @@ class Block(BaseBox):
             if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
                 result += ';'
             result += '\n'
-        
-
-        variabili = ''
-        num_var_add = len(Appoggio.variabili_locali) - num_var
-        for i in range(num_var_add):
-            variabili += '\t'*Appoggio.indent_level + str(Appoggio.variabili_locali.popitem()[1])
 
         Appoggio.indent_level -= 1
-        return variabili + result
+        return result
+    
+    def get_chain_variables(self):
+        result = ""
+        for statement in self.statements:
+            if statement.get_chain_variables() != "":
+                result += statement.get_chain_variables() + ","  
+        return result[:-1]
 
 
 
@@ -115,8 +137,8 @@ class Null(BaseBox):
     def eval(self, env):
         return self
     
-    def to_string(self):
-        return 'null'
+    def get_chain_variables(self):
+        return "Null()"
 
     def to_c(self):
         #return 'NULL'
@@ -130,6 +152,9 @@ class Boolean(BaseBox):
     def eval(self, env):
         return self.value
     
+    def get_chain_variables(self):
+        return str(self.value)
+    
     def to_c(self):
         return str(self.value)
 
@@ -141,7 +166,7 @@ class Integer(Integer):
     def eval(self, env):
         return self.value
 
-    def to_string(self):
+    def get_chain_variables(self):
         return str(self.value)
 
     def to_c(self):
@@ -155,7 +180,7 @@ class Float(BaseBox):
     def eval(self, env):
         return self.value
     
-    def to_string(self):
+    def get_chain_variables(self):
         return str(self.value)
 
     def to_c(self):
@@ -169,8 +194,8 @@ class String(BaseBox):
     def eval(self, env):
         return self.value
     
-    def to_string(self):
-        return '"%s"' % str(self.value)
+    def get_chain_variables(self):
+        return str(self.value)
 
     def to_c(self):
         return str(self.value)
@@ -191,13 +216,20 @@ class Variable(BaseBox):
             return self.value
         raise Exception("Not yet defined " + str(self.name))
     
-    def to_string(self):
+    def get_chain_variables(self):
         return str(self.name)
 
     def to_c(self):
-        if self.name in Appoggio.variabili_locali or self.name in Appoggio.variabili_locali:
-            return self.name
+        if Appoggio.current_function != "":
+            if Appoggio.current_function in Appoggio.funzioni_prima_passata:
+                if self.name in Appoggio.funzioni_prima_passata[Appoggio.current_function]:
+                    return self.name
+                if self.name in Appoggio.variabili_globali:
+                    return self.name
+            raise Exception("Variable \"" + str(self.name) + "\" not declared")
         else:
+            if self.name in Appoggio.variabili_globali:
+                return self.name
             raise Exception("Variable \"" + str(self.name) + "\" not declared")
 
 
@@ -256,6 +288,9 @@ class BinaryOperation():
     
     def to_c(self):
         return ' ' + self.left.to_c() + ' ' + self.operator + ' ' + self.right.to_c() + ' '
+    
+    def get_chain_variables(self):
+        return ' ' + self.left.get_chain_variables() + ' ' + self.operator + ' ' + self.right.get_chain_variables() + ' '
 
 
 class Not(BaseBox):
@@ -270,6 +305,9 @@ class Not(BaseBox):
 
     def to_c(self):
         return 'not%s ' % (self.value.to_c())
+    
+    def get_chain_variables(self):
+        return ""
 
 
 class BitWise_Not(BaseBox):
@@ -283,6 +321,9 @@ class BitWise_Not(BaseBox):
 
     def to_c(self):
         return 'BitWise_Not(%s)' % (self.value.to_c())
+    
+    def get_chain_variables(self):
+        return ""
 
 
 
@@ -301,6 +342,9 @@ class FromImport(BaseBox):
             result += '#define ' + find_Program(statement, "2") + '\n'
         return result
         return self.args.to_c()
+    
+    def get_chain_variables(self):
+        return ""
 
 class Import(BaseBox):
     def __init__(self, args):
@@ -316,6 +360,9 @@ class Import(BaseBox):
             result += '#define ' + find_Program(statement, "2") + '\n'
         return result
     
+    def get_chain_variables(self):
+        return ""
+    
 class FunctionDeclaration(BaseBox):
     def __init__(self, name, args, block):
         self.name = name
@@ -323,21 +370,17 @@ class FunctionDeclaration(BaseBox):
         self.block = block
 
     def eval(self, env):
-        #print("def " + str(self.name))       
         self.block.eval(env)
         #raise LogicError("Cannot assign to this")
     
     def to_c(self):
         Appoggio.in_function = True
+        Appoggio.current_function = self.name
         if self.name in Appoggio.funzioni:
             raise Exception(self.name + " function already defined.")
-        
-        Appoggio.define_function[self.name] = "#define " + self.name.upper() + " " + str(Appoggio.define_function_number)
-        Appoggio.define_function_number += 1
-        Appoggio.funzioni[self.name] = self.name.upper()
 
-        res = '\n__section("__trp_chain_' + self.name + '")\n'
-        res += 'int __trp_chain_' + self.name + '(void) {\n'
+        res = '\n__section("__sec_chain_' + self.name + '")\n'
+        res += 'int __chain_' + self.name + '(void) {\n'
 
         #### Se la funzione ha parametri?
         #result = 'FunctionDeclaration %s (' % self.name
@@ -346,9 +389,14 @@ class FunctionDeclaration(BaseBox):
         #        result += ' ' + statement.to_c()
         #result += ')'
         #result += '\t(\n'
-
-        #if isinstance(self.args, Block):
+        
         Appoggio.indent_level += 1
+
+        ### PASTE VARIABLE
+        # Se esistono variabili locali
+        if len(Appoggio.funzioni_prima_passata[self.name]) != 0:
+            res += Appoggio.indent_level*"\t" + "_s64 " + ', '.join(Appoggio.funzioni_prima_passata[self.name]) + ";"
+
         return_presente = False
         result = ''
         for statement in self.block.get_statements():
@@ -359,11 +407,6 @@ class FunctionDeclaration(BaseBox):
             if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
                 result += ';'
 
-        ### PASTE VARIABLE
-        variabili = ''
-        for var in Appoggio.variabili_locali:
-            variabili += '\t'*Appoggio.indent_level + Appoggio.variabili_locali[var]
-
         # RETURN statement trovato
         if return_presente:
             result += '\n' + '\t'*Appoggio.indent_level
@@ -372,15 +415,27 @@ class FunctionDeclaration(BaseBox):
             result += '\n' + '\t'*Appoggio.indent_level + 'return XDP_ABORTED;'
         result += '\n}\n'
 
-        result = res + variabili + result
+        result = res + result
 
         Appoggio.indent_level -= 1
         Appoggio.in_function = False
-        Appoggio.variabili_locali.clear()
+        Appoggio.current_function = ""
         return result
 
-    def to_string(self):
-        return "<function '%s'>" % self.name
+    def get_chain_variables(self):
+        if self.name in Appoggio.funzioni_prima_passata:
+            raise Exception("Function \"" + str(self.name) + "\" already exists")
+        
+        result = []
+        for statement in self.block.get_statements():
+            array_appoggio = statement.get_chain_variables().split(",")
+            for var in array_appoggio:
+                result.append(var)
+
+        result = [i for i in result if i != ""]
+        Appoggio.funzioni_prima_passata[str(self.name)] = result
+
+        return str(self.name)
 
 
 class BinaryOp(BaseBox):
@@ -390,6 +445,9 @@ class BinaryOp(BaseBox):
 
     def to_c(self):
         return 'BinaryOp(%s, %s)' % (self.left.to_c(), self.right.to_c())
+    
+    def get_chain_variables(self):
+        return self.left.get_chain_variables() + self.right.get_chain_variables()
 
 
     
@@ -409,16 +467,26 @@ class Assignment(BinaryOp):
             raise LogicError("Cannot assign to this")
     
     def to_c(self):
-        if not Appoggio.in_function:
+        # Se sono all'interno di una funzione
+        if Appoggio.current_function != "":
+            # Se la funzione è stata dichiarata
+            if Appoggio.current_function in Appoggio.funzioni_prima_passata:
+                # prendo le variabili dichiarate al suo interno
+                array_variabili = Appoggio.funzioni_prima_passata[Appoggio.current_function]
+                # Se la variabile è stata già dichiarata OK
+                if self.left.getname() in array_variabili:
+                    return self.left.getname() + ' = ' + self.right.to_c()
+                raise Exception("ERROR: Variable not definied")
+        # Se sono al di fuori delle funzioni
+        else:
+            # Se NON è tra le variabili globali già dichiarate
             if not (self.left.getname() in Appoggio.variabili_globali):
                 Appoggio.variabili_globali[self.left.getname()] = '#define ' + self.left.getname().upper() + ' ' + str(self.right) + '\n'
                 return Appoggio.variabili_globali[self.left.getname()]
-        else:
-            if not (self.left.getname() in Appoggio.variabili_locali):
-                Appoggio.variabili_locali[self.left.getname()] = '__s64 ' + self.left.getname() + ';\n' 
-                #return Appoggio.variabili_locali[self.left.getname()] + ' = ' + self.right.to_c()    
-            return self.left.getname() + ' = ' + self.right.to_c()
-        raise Exception("ERRORE: Variabile")
+        raise Exception("ERROR: Variable not definied")
+    
+    def get_chain_variables(self):
+        return str(self.left.getname())
 
 
 class Call(BaseBox):
@@ -432,31 +500,33 @@ class Call(BaseBox):
         return result
 
     def to_c(self):
-        result = ''
+        parametri = ''
         param_number = 1
-        #if isinstance(self.args, Array):
+        # Metto i parametri in una stringa di appoggio (parametri)
         for statement in self.args.get_statements():
             param_number += 1
             ### Se è globale ovvero #define occorre fare .upper()
             if statement.to_c() in Appoggio.variabili_globali:
-                result += ', ' + statement.to_c().upper()
+                parametri += ', ' + statement.to_c().upper()
             else: 
-                result += ', ' + statement.to_c()
-        result += ')'
+                parametri += ', ' + statement.to_c()
+        parametri += ')'
         
         if self.name in Appoggio.funzioni:
+            # Se corrisponde alla funzione Packet.wtite il primo parametro va assegnato mentre il secondo va tra parentesi
             if self.name[:12] == "Packet.write":
-                return Appoggio.funzioni[self.name] + result
+                return Appoggio.funzioni[self.name] + ", " + self.args.get_statements()[1].to_c() + ') = ' + self.args.get_statements()[0].to_c()
+            # Se corrisponde alla funzione Packet.read
             if self.name[:11] == "Packet.read":
-                return Appoggio.funzioni[self.name] + result + ')'
-            return 'hike_call_' + str(param_number) + '(' + Appoggio.funzioni[self.name]  + result  
+                return Appoggio.funzioni[self.name] + parametri + ')'
+            # Se è una funzione dichiarata nel file eclat
+            return 'hike_call_' + str(param_number) + '(' + Appoggio.funzioni[self.name] + parametri
+        # Se è una funzione dichiarata all'interno del regisrty o un programma Hike, 
+        # la cerco con find_Program che ritorna l'errore se non la trova
+        return 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + parametri
 
-        call = 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + result    
-        return call
-
-
-    def to_string(self):
-        return "<call '%s'>" % self.name
+    def get_chain_variables(self):
+        return ''
 
 
 class Return(BaseBox):
@@ -471,8 +541,8 @@ class Return(BaseBox):
             return "return XDP_ABORTED"
         return 'return %s' % (self.value.to_c())
 
-    def to_string(self):
-        return "<return '%s'>" % self.name
+    def get_chain_variables(self):
+        return "return"
 
 
 
@@ -496,6 +566,9 @@ class If(BaseBox):
         if type(self.else_body) is not Null:
             result += '\n' + Appoggio.indent_level*'\t' +'else {\n' + self.else_body.to_c() + Appoggio.indent_level*'\t' +'}'
         return result
+    
+    def get_chain_variables(self):
+        return self.body.get_chain_variables()
 
 
 class While(BaseBox):
@@ -515,6 +588,9 @@ class While(BaseBox):
     def to_c(self):
         result = 'while (' + self.condition.to_c() + ') {\n' + self.body.to_c() + Appoggio.indent_level*'\t' + '}'
         return result
+    
+    def get_chain_variables(self):
+        return self.body.get_chain_variables()
 
 
 class InnerArray(BaseBox):
@@ -587,3 +663,6 @@ class Array(BaseBox):
 
     def to_string(self):
         return '[%s]' % (", ".join(self.map(lambda x: x.to_string(), self.values)))
+    
+    def get_chain_variables(self):
+        return ""
