@@ -1,3 +1,0 @@
-encap       0x01
-monitor     0x02
-routing     0x03

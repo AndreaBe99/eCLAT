@@ -1,4 +1,0 @@
-bpftool map update
-        pinned /sys/fs/bpf/ebpfgen/ipv6_da_table
-        key   hex fc 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01
-        value hex 00 00 01 01 02 02 03 01 ff ff 00 00 00 00 00 00 
