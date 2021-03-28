@@ -32,7 +32,7 @@ class Appoggio():
 #### in cui ho bisogno sia del nome che del numero associato
 def find_Program(statement, mod):
     result = ''
-    with open("eclat_program_list.csv", mode='r') as csv_file:
+    with open("csv/eclat_program_list.csv", mode='r') as csv_file:
         string = csv.reader(csv_file, delimiter=';')
         for row in string:
             if statement == row[0]:
@@ -40,7 +40,7 @@ def find_Program(statement, mod):
                     return row[1]
                 if mod == "2":
                     return row[1] + ' ' + row[2]
-    with open("regisrty.csv", mode='r') as csv_file:
+    with open("csv/regisrty.csv", mode='r') as csv_file:
         string = csv.reader(csv_file, delimiter=';')
         for row in string:
             if statement == row[0]:
@@ -67,7 +67,7 @@ class Program(BaseBox):
 
         count = 0
         # Scrivo tutte le funzioni in un registry con associato un contatore
-        with open('regisrty.csv', 'w', newline='') as file:
+        with open('csv/regisrty.csv', 'w', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             for fun in Appoggio.funzioni_prima_passata:
                 writer.writerow([str(fun), str(fun.upper()), str(count)])
@@ -520,10 +520,10 @@ class Call(BaseBox):
             if self.name[:11] == "Packet.read":
                 return Appoggio.funzioni[self.name] + parametri + ')'
             # Se è una funzione dichiarata nel file eclat
-            return 'hike_call_' + str(param_number) + '(' + Appoggio.funzioni[self.name] + parametri
+            return 'hike_elem_call_' + str(param_number) + '(' + Appoggio.funzioni[self.name] + parametri
         # Se è una funzione dichiarata all'interno del regisrty o un programma Hike, 
         # la cerco con find_Program che ritorna l'errore se non la trova
-        return 'hike_call_' + str(param_number) + '(' + find_Program(self.name, "1") + parametri
+        return 'hike_elem_call_' + str(param_number) + '(' + find_Program(self.name, "1") + parametri
 
     def get_chain_variables(self):
         return ''

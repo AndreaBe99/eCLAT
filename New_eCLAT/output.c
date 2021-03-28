@@ -11,10 +11,10 @@ int __chain_mychain3(void) {
 		if ( ttl == 64 ) {
 			__WRITE_PACKET(__u8, 21) = 17;
 		}
-		hike_call_2(HIKE_EBPF_PROG_ALLOW_ANY, eth_type);
+		hike_elem_call_2(HIKE_EBPF_PROG_ALLOW_ANY, eth_type);
 	}
 	if ( eth_type == 2048 ) {
-		hike_call_2(HIKE_EBPF_PROG_DROP_ANY, eth_type);
+		hike_elem_call_2(HIKE_EBPF_PROG_DROP_ANY, eth_type);
 	}
 	return XDP_ABORTED;
 }

@@ -6,7 +6,6 @@ def mychain2():
     
     if eth_type == 0x86dd :
         drop(eth_type)
-        #hike_elem_call_2
         return 
 
     ttl = 64 #espande in un S64

@@ -32,7 +32,7 @@ class Lexer():
         self.lexer = LexerGenerator()
 
     def _add_tokens(self):
-        with open("token.csv", mode='r') as csv_file:
+        with open("csv/token.csv", mode='r') as csv_file:
             str = csv.reader(csv_file, delimiter = ';')
             for row in str:
                 #self.lexer.add(exec("'" + row[0] + "'"), exec(row[1]))
