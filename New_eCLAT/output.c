@@ -18,10 +18,3 @@ int __chain_mychain3(void) {
 	}
 	return XDP_ABORTED;
 }
-
-__section("__sec_chain_mychain4")
-int __chain_mychain4(void) {
-
-	hike_call_1(MYCHAIN3);
-	return XDP_ABORTED;
-}

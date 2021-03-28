@@ -101,7 +101,10 @@ def detect_indent(lexer, source):
                     dedent_number += 1
             
             text = text + line + " _dedent "*dedent_number + "\n"
-        #print((1+line_num), line)
+    
+    # Nel caso le ultime righe siano vuote o commenti inserisce i DEDENT rimanenti
+    for dedent in range(len(indent_stack)-1):
+        text += " _dedent "
     #print(text)
     return lexer.lex(text)
 

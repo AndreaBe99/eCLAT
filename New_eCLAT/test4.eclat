@@ -10,6 +10,3 @@ def mychain3():
         allow(eth_type)
     if eth_type == 0x800 :
         drop(eth_type)
-
-def mychain4():
-    mychain3()
