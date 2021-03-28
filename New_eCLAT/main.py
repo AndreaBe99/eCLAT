@@ -110,7 +110,7 @@ def detect_indent(lexer, source):
 
 
 
-#run_file("test2.eclat")
+#run_file("Test/prova_3.eclat")
 #"""
 def show_chain():
     print("Show Chain")

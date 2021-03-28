@@ -7,9 +7,7 @@ from random import randint
 
 ### CLASSE DI APPOGGIO PER SCRIVERE LE DICHIARAZIONI ###
 class Appoggio():
-    in_function = False
-    #variabili_locali = {}
-    variabili_globali = {}
+    # dict provvisorio per la funzione Packet
     funzioni = {
         "Packet.readU8": "bpf_ntohs(__READ_PACKET(__u8",
         "Packet.readU16": "bpf_ntohs(__READ_PACKET(__be16",
@@ -20,10 +18,16 @@ class Appoggio():
         "Packet.writeU32": "__WRITE_PACKET(__u32",
         #"Packet.writeU64": "__WRITE_PACKET(__u64",
     }
+    # variabile per capire se sono o meno all'interno di una funzione
+    in_function = False
+    # Contatore per l'indentazione del file .c
     indent_level = 0
-
+    # dict contenente le funzioni con associte le variabili in esse contenute
     funzioni_prima_passata = {}
-    current_function = ""
+    # dict contenente le variabili globali con associato la stringa #define per il file .c
+    variabili_globali_prima_passata = {}
+    # Variabile di appoggio in cui viene memorizzato il nome della funzione corrente
+    funzione_corrente = ""
 
 ###### FUNZIONE PROVVISORIA ########
 # Trova il programma nei file se presente.
@@ -57,7 +61,7 @@ class Program(BaseBox):
         self.statements.insert(0, statement)
 
     def eval(self, env):
-        result = None
+        result = ""
         output = ""
 
         # prima passata per "scorrere" le funzioni e le variabili
@@ -66,7 +70,7 @@ class Program(BaseBox):
             prima_passata += statement.get_chain_variables()
 
         count = 0
-        # Scrivo tutte le funzioni in un registry con associato un contatore
+        # Scrivo tutte le funzioni trovate in un registry con associato un contatore
         with open('csv/regisrty.csv', 'w', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             for fun in Appoggio.funzioni_prima_passata:
@@ -77,8 +81,15 @@ class Program(BaseBox):
             result = statement.eval(env)
             output += statement.to_c()
 
-        output = "#include <hike_vm.h>\n" + output
+        var = ""
+        # Incollo le variabili trovate durante la prima passata
+        for var_globale in Appoggio.variabili_globali_prima_passata:
+            var += Appoggio.variabili_globali_prima_passata[var_globale]
+
+        # Importo i #define di default e le incollo le variabili globali
+        output = "#include <hike_vm.h>\n" + var + output
         print(output)
+        # Scrivo il file .c di output
         f = open("output.c", "w")
         f.write(output)
         f.close()
@@ -86,7 +97,6 @@ class Program(BaseBox):
         #print("\nVARIABILI: ")
         #for var in env.variables:
         #    print(var, env.variables[var])
-
         return result
 
     def get_statements(self):
@@ -108,7 +118,6 @@ class Block(BaseBox):
         result = None
         for statement in self.statements:
             result = statement.eval(env)
-            #print result.to_string()
         return result
     
     def to_c(self):
@@ -220,15 +229,15 @@ class Variable(BaseBox):
         return str(self.name)
 
     def to_c(self):
-        if Appoggio.current_function != "":
-            if Appoggio.current_function in Appoggio.funzioni_prima_passata:
-                if self.name in Appoggio.funzioni_prima_passata[Appoggio.current_function]:
+        if Appoggio.funzione_corrente != "":
+            if Appoggio.funzione_corrente in Appoggio.funzioni_prima_passata:
+                if self.name in Appoggio.funzioni_prima_passata[Appoggio.funzione_corrente]:
                     return self.name
-                if self.name in Appoggio.variabili_globali:
+                if self.name in Appoggio.variabili_globali_prima_passata:
                     return self.name
             raise Exception("Variable \"" + str(self.name) + "\" not declared")
         else:
-            if self.name in Appoggio.variabili_globali:
+            if self.name in Appoggio.variabili_globali_prima_passata:
                 return self.name
             raise Exception("Variable \"" + str(self.name) + "\" not declared")
 
@@ -375,7 +384,7 @@ class FunctionDeclaration(BaseBox):
     
     def to_c(self):
         Appoggio.in_function = True
-        Appoggio.current_function = self.name
+        Appoggio.funzione_corrente = self.name
         if self.name in Appoggio.funzioni:
             raise Exception(self.name + " function already defined.")
 
@@ -419,13 +428,13 @@ class FunctionDeclaration(BaseBox):
 
         Appoggio.indent_level -= 1
         Appoggio.in_function = False
-        Appoggio.current_function = ""
+        Appoggio.funzione_corrente = ""
         return result
 
     def get_chain_variables(self):
         if self.name in Appoggio.funzioni_prima_passata:
             raise Exception("Function \"" + str(self.name) + "\" already exists")
-        
+        Appoggio.in_function = True
         result = []
         for statement in self.block.get_statements():
             array_appoggio = statement.get_chain_variables().split(",")
@@ -434,7 +443,7 @@ class FunctionDeclaration(BaseBox):
 
         result = [i for i in result if i != ""]
         Appoggio.funzioni_prima_passata[str(self.name)] = result
-
+        Appoggio.in_function = False
         return str(self.name)
 
 
@@ -468,11 +477,11 @@ class Assignment(BinaryOp):
     
     def to_c(self):
         # Se sono all'interno di una funzione
-        if Appoggio.current_function != "":
+        if Appoggio.funzione_corrente != "":
             # Se la funzione è stata dichiarata
-            if Appoggio.current_function in Appoggio.funzioni_prima_passata:
+            if Appoggio.funzione_corrente in Appoggio.funzioni_prima_passata:
                 # prendo le variabili dichiarate al suo interno
-                array_variabili = Appoggio.funzioni_prima_passata[Appoggio.current_function]
+                array_variabili = Appoggio.funzioni_prima_passata[Appoggio.funzione_corrente]
                 # Se la variabile è stata già dichiarata OK
                 if self.left.getname() in array_variabili:
                     return self.left.getname() + ' = ' + self.right.to_c()
@@ -480,12 +489,17 @@ class Assignment(BinaryOp):
         # Se sono al di fuori delle funzioni
         else:
             # Se NON è tra le variabili globali già dichiarate
-            if not (self.left.getname() in Appoggio.variabili_globali):
-                Appoggio.variabili_globali[self.left.getname()] = '#define ' + self.left.getname().upper() + ' ' + str(self.right) + '\n'
-                return Appoggio.variabili_globali[self.left.getname()]
-        raise Exception("ERROR: Variable not definied")
-    
+            if not (self.left.getname() in Appoggio.variabili_globali_prima_passata):
+                raise Exception("ERROR: Variable \"" + self.left.getname() + "\" not definied")
+            else:
+                return ""
+                # COME VIENE SOVRASCITTO IL VALORE ???
+                #Appoggio.variabili_globali_prima_passata[self.left.getname()] = '#define ' + self.left.getname().upper() + ' ' + str(self.right) + '\n'
+                #return Appoggio.variabili_globali_prima_passata[self.left.getname()]
+
     def get_chain_variables(self):
+        if not Appoggio.in_function:
+            Appoggio.variabili_globali_prima_passata[self.left.getname()] = '#define ' + self.left.getname().upper() + ' ' + str(self.right) + '\n'
         return str(self.left.getname())
 
 
@@ -506,7 +520,7 @@ class Call(BaseBox):
         for statement in self.args.get_statements():
             param_number += 1
             ### Se è globale ovvero #define occorre fare .upper()
-            if statement.to_c() in Appoggio.variabili_globali:
+            if statement.to_c() in Appoggio.variabili_globali_prima_passata:
                 parametri += ', ' + statement.to_c().upper()
             else: 
                 parametri += ', ' + statement.to_c()
