@@ -50,13 +50,14 @@ def detect_indent(lexer, source):
     indent_number = 0
     indent_stack = [0]
     
+    # RegEx per i commenti
     comments = r'(#.*)(?:\n|\Z)'
     
     for line_num, line in enumerate(source.splitlines(), 0):
         line = line.rstrip()
         line = line.replace("\t", indent_symbol*4)
 
-        # Rimuovi il commento dalla riga
+        # Rimuove tutte le righe con i commenti 
         comment = re.search(comments, line)
         while comment is not None:
             start, end = comment.span(1)
@@ -103,6 +104,7 @@ def detect_indent(lexer, source):
             text = text + line + " _dedent "*dedent_number + "\n"
     
     # Nel caso le ultime righe siano vuote o commenti inserisce i DEDENT rimanenti
+    # -1 perchè c'è lo 0 compreso
     for dedent in range(len(indent_stack)-1):
         text += " _dedent "
     #print(text)
@@ -110,7 +112,7 @@ def detect_indent(lexer, source):
 
 
 
-#run_file("Test/prova_3.eclat")
+#run_file("Test/test_1.eclat")
 #"""
 def show_chain():
     print("Show Chain")

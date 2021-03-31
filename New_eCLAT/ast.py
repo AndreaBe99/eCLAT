@@ -68,8 +68,8 @@ class Program(BaseBox):
         prima_passata = ""
         for statement in self.statements:
             prima_passata += statement.get_chain_variables()
-
         count = 0
+    
         # Scrivo tutte le funzioni trovate in un registry con associato un contatore
         with open('csv/regisrty.csv', 'w', newline='') as file:
             writer = csv.writer(file, delimiter=';')
@@ -168,9 +168,11 @@ class Boolean(BaseBox):
         return str(self.value)
 
 
-class Integer(Integer):
-    def __init__(self, value):
-        self.value = int(value)  
+#class Integer(Integer):
+class Integer():
+    def __init__(self, value, base):
+        self.value = int(value)
+        self.base = base
 
     def eval(self, env):
         return self.value
@@ -179,7 +181,11 @@ class Integer(Integer):
         return str(self.value)
 
     def to_c(self):
-        return str(self.value)
+        #print()
+        if self.base == 16:
+            return str(hex(self.value))
+        if self.base == 10:
+            return str(self.value)
 
 
 class Float(BaseBox):
@@ -387,7 +393,6 @@ class FunctionDeclaration(BaseBox):
         Appoggio.funzione_corrente = self.name
         if self.name in Appoggio.funzioni:
             raise Exception(self.name + " function already defined.")
-
         res = '\n__section("__sec_chain_' + self.name + '")\n'
         res += 'int __chain_' + self.name + '(void) {\n'
 
@@ -425,7 +430,6 @@ class FunctionDeclaration(BaseBox):
         result += '\n}\n'
 
         result = res + result
-
         Appoggio.indent_level -= 1
         Appoggio.in_function = False
         Appoggio.funzione_corrente = ""
@@ -441,7 +445,11 @@ class FunctionDeclaration(BaseBox):
             for var in array_appoggio:
                 result.append(var)
 
-        result = [i for i in result if i != ""]
+        # Elimina eventuali spazi vuoti delle stringhe e i return Null()
+        result = [i for i in result if i != "" and i != "Null()"]
+        # Elimina eventuali duplicati
+        result = list(dict.fromkeys(result))
+
         Appoggio.funzioni_prima_passata[str(self.name)] = result
         Appoggio.in_function = False
         return str(self.name)
@@ -556,7 +564,7 @@ class Return(BaseBox):
         return 'return %s' % (self.value.to_c())
 
     def get_chain_variables(self):
-        return "return"
+        return ""
 
 
 
@@ -582,7 +590,23 @@ class If(BaseBox):
         return result
     
     def get_chain_variables(self):
-        return self.body.get_chain_variables()
+        return self.body.get_chain_variables() + "," + self.else_body.get_chain_variables()
+
+
+class Else(BaseBox):
+    def __init__(self, else_body=Null()):
+        self.else_body = else_body
+
+    def eval(self, env):
+        return self.else_body.eval(env)
+
+    def to_c(self):    
+        #result = '\n' + Appoggio.indent_level*'\t' + 'else {\n' + self.else_body.to_c() + Appoggio.indent_level*'\t' + '}'
+        result = self.else_body.to_c()
+        return result
+
+    def get_chain_variables(self):
+        return self.else_body.get_chain_variables()
 
 
 class While(BaseBox):

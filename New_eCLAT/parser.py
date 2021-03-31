@@ -102,30 +102,32 @@ class Parser():
         
 
         ########## GESTIRE INIZIO E FINE BLOCCO IF-ELSE ####################
-        # @self.pg.production('expression : IF expression : statement ELSE : statement')
-        # def expression_if_else_single_line(p):
-        #     return If(condition=p[1], body=p[3], else_body=p[6])
-
-        # @self.pg.production('expression : IF expression : statement')
-        # def expression_if_single_line(p):
-        #     return If(condition=p[1], body=p[3])
         
-        # @self.pg.production('expression : IF expression : NEWLINE blocks ')
-        # def expression_if(p):
-        #     return If(condition=p[1], body=p[4])
+        @self.pg.production('expression : IF expression : NEWLINE block else_stmt')
+        @self.pg.production('expression : IF expression : NEWLINE block')
+        def expression_if_else_single_line(p):
+            if len(p) == 6:
+                return If(condition=p[1], body=p[4], else_body=p[5])
+            else:
+                return If(condition=p[1], body=p[4])
 
-        # @self.pg.production('expression : IF expression : NEWLINE block ELSE : NEWLINE blocks')
-        # def expression_if_else(p):
-        #     return If(condition=p[1], body=p[4], else_body=p[8])
+        @self.pg.production('expression : IF expression : statement NEWLINE else_stmt')
+        @self.pg.production('expression : IF expression : statement_full')
+        def expression_if_else_single_line(p):
+            if len(p) == 6:
+                return If(condition=p[1], body=p[3], else_body=p[5])
+            else:
+                return If(condition=p[1], body=p[3])
 
+        @self.pg.production('else_stmt : ELSE : statement_full')
+        @self.pg.production('else_stmt : ELSE : NEWLINE block')
+        def expression_else_stmt(p):
+            if len(p) == 3:
+                return Else(else_body=p[2])
+            else:
+                return Else(else_body=p[3])
+        ####################################################################
 
-        @self.pg.production('expression : IF expression : NEWLINE INDENT blocks DEDENT')
-        def expression_if(p):
-            return If(condition=p[1], body=p[5])
-
-        @self.pg.production('expression : IF expression : NEWLINE block ELSE : NEWLINE INDENT blocks DEDENT')
-        def expression_if_else(p):
-            return If(condition=p[1], body=p[4], else_body=p[9])
         
         @self.pg.production('expression : WHILE expression : NEWLINE block ')
         def expression_while(p):
@@ -159,11 +161,11 @@ class Parser():
 
         @self.pg.production('const : INTEGER')
         def expression_integer(p):
-            return Integer(int(p[0].getstr()))
+            return Integer(int(p[0].getstr()), 10)
         
         @self.pg.production('const : HEX')
         def expression_integer(p):
-            return Integer(int(p[0].getstr(), 16))
+            return Integer(int(p[0].getstr(), 16), 16)
 
         @self.pg.production('const : STRING')
         def expression_string(p):
