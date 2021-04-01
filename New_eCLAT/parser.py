@@ -86,7 +86,6 @@ class Parser():
             return p[2]
         
         
-        
         @self.pg.production('statement : IDENTIFIER = expression')
         def statement_assignment(p):
             return Assignment(Variable(p[0].getstr()), p[2])
@@ -100,8 +99,6 @@ class Parser():
         def statement_func_noargs(p):
             return FunctionDeclaration(p[1].getstr(), Null(), p[6])
         
-
-        ########## GESTIRE INIZIO E FINE BLOCCO IF-ELSE ####################
         
         @self.pg.production('expression : IF expression : NEWLINE block else_stmt')
         @self.pg.production('expression : IF expression : NEWLINE block')
@@ -126,7 +123,6 @@ class Parser():
                 return Else(else_body=p[2])
             else:
                 return Else(else_body=p[3])
-        ####################################################################
 
         
         @self.pg.production('expression : WHILE expression : NEWLINE block ')
@@ -142,8 +138,6 @@ class Parser():
         def statement_call_args(p):
             return Return(p[1])
 
-
-        
         
         @self.pg.production('expression : const')
         def expression_const(p):
@@ -151,12 +145,10 @@ class Parser():
         
         @self.pg.production('const : FLOAT')
         def expression_float(p):
-            # p is a list of the pieces matched by the right hand side of the rule
             return Float(float(p[0].getstr()))
 
         @self.pg.production('const : BOOLEAN')
         def expression_boolean(p):
-            # p is a list of the pieces matched by the right hand side of the rule
             return Boolean(True if p[0].getstr() == 'true' else False)
 
         @self.pg.production('const : INTEGER')
@@ -171,11 +163,10 @@ class Parser():
         def expression_string(p):
             return String(p[0].getstr().strip('"\''))
         
-
-
         @self.pg.production('expression : IDENTIFIER')
         def expression_call_noargs(p):
             return Variable(p[0].getstr())
+
 
         @self.pg.production('expression : IDENTIFIER ( )')
         def expression_call_noargs(p):
@@ -207,6 +198,7 @@ class Parser():
             # so we just need to return the inner expression
             return p[1]
 
+
         @self.pg.production('expression : NOT expression ')
         def expression_not(p):
             return Not(p[1])
@@ -216,10 +208,10 @@ class Parser():
         def expression_bitwise_not(p):
             return BitWise_Not(p[1])
 
-        @self.pg.production('expression : expression PLUS expression')
-        @self.pg.production('expression : expression MINUS expression')
-        @self.pg.production('expression : expression MUL expression')
-        @self.pg.production('expression : expression DIV expression')
+        @self.pg.production('expression : expression PLUS expression')  # +
+        @self.pg.production('expression : expression MINUS expression') # -
+        @self.pg.production('expression : expression MUL expression')   # *
+        @self.pg.production('expression : expression DIV expression')   # /
         @self.pg.production('expression : expression != expression')
         @self.pg.production('expression : expression == expression')
         @self.pg.production('expression : expression >= expression')
@@ -244,7 +236,6 @@ class Parser():
 
         @self.pg.production('expressionlist : expression , expressionlist')
         def arglist(p):
-            # expressionlist should already be an InnerArray
             p[2].push(p[0])
             return p[2]
     
@@ -253,7 +244,7 @@ class Parser():
         #### Error
         @self.pg.error
         def error_handle(token):
-            raise Exception(token)
+            raise Exception("Incorrect syntax, Token ", token, " not recognized.")
 
     def get_parser(self):
         return self.pg.build()
