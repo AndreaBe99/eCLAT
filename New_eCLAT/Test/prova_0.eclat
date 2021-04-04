@@ -9,8 +9,8 @@ def myChain():
     ip_type = 0xcafe
     j = (4 + 3) * 2
     x = 4 + 3 * 2
-    z = 5 >> 2          # Shift dx di 2 posizioni: 00101 --> 00001
-    a = 5 >> 0x02       # Shift dx di 2 posizioni: 00101 --> 00001
-    b = 5 << 2          # Shift sx di 2 posizioni: 00101 --> 10100
-    c = 5 & 2           # AND: 00101 & 00010 --> 00000 --> 0
-    d = 5 | 2           # AND: 00101 & 00010 --> 00111 --> 7
+    #z = 5 >> 2          # Shift dx di 2 posizioni: 00101 --> 00001
+    #a = 5 >> 0x02       # Shift dx di 2 posizioni: 00101 --> 00001
+    #b = 5 << 2          # Shift sx di 2 posizioni: 00101 --> 10100
+    #c = 5 & 2           # AND: 00101 & 00010 --> 00000 --> 0
+    #d = 5 | 2           # AND: 00101 & 00010 --> 00111 --> 7

@@ -208,6 +208,11 @@ class Parser():
         def expression_bitwise_not(p):
             return BitWise_Not(p[1])
 
+        @self.pg.production('expression : expression & expression')     # AND
+        @self.pg.production('expression : expression PIPE expression')  # OR
+        @self.pg.production('expression : expression ^ expression')     # XOR 
+        @self.pg.production('expression : expression >> expression')    # SHIFT LEFT
+        @self.pg.production('expression : expression << expression')    # SHIFT RIGHT
         @self.pg.production('expression : expression PLUS expression')  # +
         @self.pg.production('expression : expression MINUS expression') # -
         @self.pg.production('expression : expression MUL expression')   # *
@@ -220,12 +225,6 @@ class Parser():
         @self.pg.production('expression : expression < expression')
         @self.pg.production('expression : expression AND expression')
         @self.pg.production('expression : expression OR expression')
-        # BITWISE OPERATION
-        @self.pg.production('expression : expression & expression')     # AND
-        @self.pg.production('expression : expression PIPE expression')  # OR
-        @self.pg.production('expression : expression ^ expression')     # XOR
-        @self.pg.production('expression : expression >> expression')    # SHIFT LEFT
-        @self.pg.production('expression : expression << expression')    # SHIFT RIGHT
         def expression_binop(p):
             return BinaryOperation(operator=p[1].getstr(), left=p[0], right=p[2])
 
@@ -238,13 +237,11 @@ class Parser():
         def arglist(p):
             p[2].push(p[0])
             return p[2]
-    
-        
-        
+            
         #### Error
         @self.pg.error
         def error_handle(token):
-            raise Exception("Incorrect syntax, Token ", token, " not recognized.")
+            raise Exception("Incorrect syntax, " + str(token) + " not recognized.")
 
     def get_parser(self):
         return self.pg.build()
