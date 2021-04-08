@@ -11,14 +11,14 @@ def mychain4():
     if eth_type == 0x800 :
         allow = 0
         mychain5(allow, eth_type)
-        #return ?
+        return
 
     if eth_type == 0x86dd :
         hop_lim = Packet.readU16(__ipv6_hop_lim_abs_off)
         if hop_lim != 64:
             mychain5(allow, eth_type)
-            #return ?
-        Packet.writeU8(__ipv6_hop_lim_abs_off,21) 
+            return
+        Packet.writeU8(__ipv6_hop_lim_abs_off,17) 
     
 
 def mychain5(allow, eth_type):
