@@ -1,5 +1,5 @@
 from hike import drop, allow
-#from net import Packet
+from net import Packet
 
 __eth_proto_type_abs_off = 12
 __ipv6_hop_lim_abs_off = 21

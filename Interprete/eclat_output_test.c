@@ -7,7 +7,9 @@
 #define __IPV6_HOP_LIM_ABS_OFF 21
 
 HIKE_CHAIN(HIKE_CHAIN_MYCHAIN1_ID) {
-	__u64 eth_type, hop_lim;
+	_u16 eth_type;
+	_u8 hop_lim;
+
 	hike_packet_read_u16(&eth_type, __ETH_PROTO_TYPE_ABS_OFF);
 	if ( eth_type == 0x800 ) {
 		hike_elem_call_2(HIKE_EBPF_PROG_DROP_ANY, eth_type);
@@ -25,7 +27,10 @@ HIKE_CHAIN(HIKE_CHAIN_MYCHAIN1_ID) {
 }
 
 HIKE_CHAIN(HIKE_CHAIN_MYCHAIN2_ID) {
-	__u64 allow, eth_type, hop_lim;
+	_u8 allow;
+	_u16 eth_type;
+	_u8 hop_lim;
+
 	allow = 1;
 	hike_packet_read_u16(&eth_type, __ETH_PROTO_TYPE_ABS_OFF);
 	if ( eth_type == 0x800 ) {
@@ -45,7 +50,8 @@ HIKE_CHAIN(HIKE_CHAIN_MYCHAIN2_ID) {
 }
 
 HIKE_CHAIN(HIKE_CHAIN_MYCHAIN5_ID, __u64 allow, __u64 eth_type) {
-	__u64 prog_id;
+	_u32 prog_id;
+
 	if ( allow == 1 ) {
 		prog_id = hike_elem_call_1(HIKE_EBPF_PROG_ALLOW_ANY);
 	}

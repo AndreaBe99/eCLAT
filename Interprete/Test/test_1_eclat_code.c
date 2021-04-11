@@ -1,4 +1,3 @@
-#include <hike_vm.h>
 #define HIKE_CHAIN_MYCHAIN1_ID 64
 #define HIKE_CHAIN_MYCHAIN2_ID 65
 #define HIKE_CHAIN_MYCHAIN5_ID 66
