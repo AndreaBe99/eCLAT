@@ -2,4 +2,4 @@
 eCLAT Interpreter
 
 Per avviare l'interprete:
-./main.py --run "nomeFile" 
+./eCLAT.py --run Examples/"nomeFile" 
