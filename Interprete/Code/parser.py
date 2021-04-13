@@ -74,13 +74,31 @@ class Parser():
         @self.pg.production('statement : IMPORT arglist')
         def statement_func(p):
             return Import(Array(p[1]))
-
         
+        ##################### PROVA ########################
+        @self.pg.production('arglist : IDENTIFIER : U8')
+        @self.pg.production('arglist : IDENTIFIER : U16')
+        @self.pg.production('arglist : IDENTIFIER : U32')
+        @self.pg.production('arglist : IDENTIFIER : U64')
+        def arglist_single(p):
+            return InnerArray([p[2].getstr() + " " + p[0].getstr()])
+        ####################################################
+
         @self.pg.production('arglist : IDENTIFIER')
-        #@self.pg.production('arglist : IDENTIFIER ,')
         def arglist_single(p):
             return InnerArray([ p[0].getstr()])
             #return InnerArray([Variable(p[0].getstr())])
+
+        ##################### PROVA ########################
+        @self.pg.production('arglist : IDENTIFIER : U8  , arglist')
+        @self.pg.production('arglist : IDENTIFIER : U16 , arglist')
+        @self.pg.production('arglist : IDENTIFIER : U32 , arglist')
+        @self.pg.production('arglist : IDENTIFIER : U64 , arglist')
+        def arglist(p):
+            # list should already be an InnerArray
+            p[4].push(p[2].getstr() + " " + p[0].getstr())
+            return p[4]
+        #####################################################
 
         @self.pg.production('arglist : IDENTIFIER , arglist')
         def arglist(p):

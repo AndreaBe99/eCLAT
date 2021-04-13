@@ -22,11 +22,18 @@ class Appoggio():
     hike_program = {}               # dict dei programmi Hike presenti nel file eclat_program_list
     chain_registry = {}             # dict delle Chain prese dal file regisrty
     net_packet = {}                  # dict provvisorio per la funzione Packet
-    # xxxxxxxxxxxxxxxx BUG xxxxxxxxxxxxxxxx #
-    # Per qualche motivo a volte vengono    #
-    # aggiunte le parentesi di Expression   #
-    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #
-    in_if = False
+    # --------------------------------------- #
+    # Queste ultime due variabili mi servono  #
+    # per eliminare le parentesi di troppo.   #
+    # Tale inconveniente è dovuto al fatto    #
+    # che in Python la condizione può NON     #
+    # essere racchiusa tra parentesi.         #
+    # Infatti se c'è più di un Expression     #
+    # tra quelle trovate le parentesi non     #
+    # necessarie.                             #
+    # --------------------------------------- #
+    in_condition = False            # variabile usata per dire se sono all'interno di una condizione (if/while)
+    exp_count = 0                   # contatore per le condizioni (if/while) 
 
 # --------------------------------------- #
 #           FUNZIONE PROVVISORIA          #
@@ -100,9 +107,9 @@ class Program(BaseBox):
         f.write(output)
         f.close()
 
-        #print("\nVARIABILI: ")
-        #for var in env.variables:
-        #    print(var, env.variables[var])
+        print("\nVARIABILI: ")
+        for var in env.variables:
+            print(var, env.variables[var])
         return result
 
     def get_statements(self):
@@ -157,10 +164,17 @@ class Expression(BaseBox):
         return ""
 
     def to_c(self):
-        #return 'NULL'
-        if Appoggio.in_if:
-            Appoggio.in_if = False
-            return self.value.to_c()
+        # ----------------------------------------- #
+        # Se sono all'interno di una condizione     #
+        # incremento ogni volta che incotro un Exp  #
+        # Questo per eliminare doppie parentesi se  #
+        # viene trovata una sola Exp                #
+        # Infatti se c'è più di un Expression     #
+        # tra quelle trovate le parentesi non     #
+        # necessarie.                             #
+        # --------------------------------------- #
+        if Appoggio.in_condition:
+            Appoggio.exp_count += 1
         return "(" + self.value.to_c() + ")"
 
 class Null(BaseBox):
@@ -475,10 +489,13 @@ class FunctionDeclaration(BaseBox):
 
         res = "\nHIKE_CHAIN(" + find_Program(self.name)
 
-        #### Se la funzione ha parametri?
+        # ----------------------------------------- #
+        # Se la funzione ha parametri?              #
+        # '__' per il tipo
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
-                res += ', __u64 ' + statement
+                res += ', __' + statement
+                #res += ', __u64 ' + statement
         #result += '\t(\n'
         res += ") {\n"
         Appoggio.indent_level += 1
@@ -526,10 +543,14 @@ class FunctionDeclaration(BaseBox):
 
         # ----------------------------------------- #
         # Metto i parametri in un dict              #
+        #                   PROVA                   #
+        # Faccio lo .split() per separe il TIPO dal #
+        # nome della variabile.                     #
         array_parametri = []
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
-                array_parametri.append(statement)
+                array_parametri.append(statement.split()[1])
+                #array_parametri.append(statement)
 
         # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
         # Controllo il numero dei parametri, se     #
@@ -658,6 +679,8 @@ class Assignment(BinaryOp):
             if not self.left.getname() in Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente] and \
                 not self.left.getname() in Appoggio.funzioni_parametri_locali[Appoggio.funzione_corrente]:
                 Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente].append(self.left.getname()) 
+
+
                 # ----------------------------------------- #
                 # Se è una Call controllo se è una Packet   #
                 # in tal caso deduco la dimensione.         #
@@ -668,43 +691,52 @@ class Assignment(BinaryOp):
                     if self.right.name[:11] == "Packet.read" or self.right.name[:12] == "Packet.write":
                         if self.right.name[11:] == "U8" or self.right.name[12:] == "U8":
                             Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
-                        if self.right.name[11:] == "U16" or self.right.name[12:] == "U16":
+                        elif self.right.name[11:] == "U16" or self.right.name[12:] == "U16":
                             Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
-                        if self.right.name[11:] == "U32" or self.right.name[12:] == "U32":
+                        elif self.right.name[11:] == "U32" or self.right.name[12:] == "U32":
                             Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
-                        if self.right.name[11:] == "U64" or self.right.name[12:] == "U64":
+                        elif self.right.name[11:] == "U64" or self.right.name[12:] == "U64":
                             Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
                     else:
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
+                else:
+                    if self.right.exec(env) < 2**8 - 1:
+                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
+                    elif 2**8 - 1 < self.right.exec(env) < 2**16 - 1:
+                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
+                    elif 2**16 - 1 < self.right.exec(env) < 2**32 - 1:
+                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
+                    elif 2**32 - 1 < self.right.exec(env) < 2**64 - 1:
+                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
                 # ----------------------------------------- #
                 # Se assegno un numero, tramite la formula  #
                 # calcolo la dimensione.                    #
                 # ----------------------------------------- #
-                elif type(self.right) is Integer or type(self.right) is Float:
-                    if int(self.right.exec(env)) < 2**8 -1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
-                    if 2**8 - 1 < int(self.right.exec(env)) < 2**16 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
-                    if 2**16 - 1 < int(self.right.exec(env)) < 2**32 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
-                    if 2**32 - 1 < int(self.right.exec(env)) < 2**64 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
+                # elif type(self.right) is Integer or type(self.right) is Float:
+                #     if int(self.right.exec(env)) < 2**8 -1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
+                #     if 2**8 - 1 < int(self.right.exec(env)) < 2**16 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
+                #     if 2**16 - 1 < int(self.right.exec(env)) < 2**32 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
+                #     if 2**32 - 1 < int(self.right.exec(env)) < 2**64 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
                 # ----------------------------------------- #
                 # Se è un espressione matematica, la eseguo #
                 # e guardo il risultato finale, e tramite   #
                 # la formula calcolo la dimensione          #
                 # ----------------------------------------- #
-                elif type(self.right) is BinaryOperation:
-                    if self.right.exec(env) < 2**8 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
-                    if 2**8 - 1 < self.right.exec(env) < 2**16 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
-                    if 2**16 - 1 < self.right.exec(env) < 2**32 - 1:
-                        Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
-                    if 2**32 - 1 < self.right.exec(env) < 2**64 - 1:
+                # elif type(self.right) is BinaryOperation:
+                #     if self.right.exec(env) < 2**8 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
+                #     if 2**8 - 1 < self.right.exec(env) < 2**16 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
+                #     if 2**16 - 1 < self.right.exec(env) < 2**32 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
+                #     if 2**32 - 1 < self.right.exec(env) < 2**64 - 1:
+                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
+                    else:
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
-                else:
-                    Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
 
             # ----------------------------------------- #
             # Se la parte destra è una call significa   #
@@ -885,21 +917,28 @@ class If(BaseBox):
         return Null()
 
     def to_c(self):
-        # xxxxxxxxxxxxxxxx BUG xxxxxxxxxxxxxxxx #
-        # Per qualche motivo a volte vengono    #
-        # aggiunte le parentesi di Expression   #
-        # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #
-        #condition = self.condition.to_c()
-        #if condition[0] == "(" and condition[-1] == ")":
-        #    condition = condition[1:-1]
-        Appoggio.in_if = True
-        result = 'if ('+ self.condition.to_c() + ') {\n' \
+        # --------------------------------------- #
+        # Questa parte di codice mi serve per     #
+        # eliminare le parentesi di troppo.       #
+        # Tale inconveniente è dovuto al fatto    #
+        # che in Python la condizione può NON     #
+        # essere racchiusa tra parentesi.         #
+        # Infatti se c'è più di un Expression     #
+        # tra quelle trovate le parentesi non     #
+        # necessarie.                             #
+        # --------------------------------------- #
+        Appoggio.in_condition = True
+        condition = self.condition.to_c()
+        if Appoggio.exp_count > 1:
+            condition = condition[1:-1]
+        Appoggio.in_condition = False
+
+        result = 'if ('+ condition + ') {\n' \
             + self.body.to_c() + Appoggio.indent_level*'\t' + '}'
         if type(self.else_body) is not Null:
             result += '\n' + Appoggio.indent_level*'\t' \
                 +'else {\n' + self.else_body.to_c() \
                     + Appoggio.indent_level*'\t' +'}'
-        Appoggio.in_if = False
         return result
 
     def prima_passata(self, env):
@@ -936,7 +975,23 @@ class While(BaseBox):
         return Null()
 
     def to_c(self):
-        result = 'while (' + self.condition.to_c() \
+        # --------------------------------------- #
+        # Questa parte di codice mi serve per     #
+        # eliminare le parentesi di troppo.       #
+        # Tale inconveniente è dovuto al fatto    #
+        # che in Python la condizione può NON     #
+        # essere racchiusa tra parentesi.         #
+        # Infatti se c'è più di un Expression     #
+        # tra quelle trovate le parentesi non     #
+        # necessarie.                             #
+        # --------------------------------------- #
+        Appoggio.in_condition = True
+        condition = self.condition.to_c()
+        if Appoggio.exp_count > 1:
+            condition = condition[1:-1]
+        Appoggio.in_condition = False
+
+        result = 'while (' + condition \
             + ') {\n' + self.body.to_c() \
                 + Appoggio.indent_level*'\t' + '}'
         return result
