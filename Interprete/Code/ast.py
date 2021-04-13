@@ -22,6 +22,11 @@ class Appoggio():
     hike_program = {}               # dict dei programmi Hike presenti nel file eclat_program_list
     chain_registry = {}             # dict delle Chain prese dal file regisrty
     net_packet = {}                  # dict provvisorio per la funzione Packet
+    # xxxxxxxxxxxxxxxx BUG xxxxxxxxxxxxxxxx #
+    # Per qualche motivo a volte vengono    #
+    # aggiunte le parentesi di Expression   #
+    # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #
+    in_if = False
 
 # --------------------------------------- #
 #           FUNZIONE PROVVISORIA          #
@@ -153,6 +158,9 @@ class Expression(BaseBox):
 
     def to_c(self):
         #return 'NULL'
+        if Appoggio.in_if:
+            Appoggio.in_if = False
+            return self.value.to_c()
         return "(" + self.value.to_c() + ")"
 
 class Null(BaseBox):
@@ -479,7 +487,7 @@ class FunctionDeclaration(BaseBox):
         # Se esistono variabili locali
         if len(Appoggio.tipo_variabili_locali[self.name]) != 0:
             for var in Appoggio.tipo_variabili_locali[self.name]:
-                res += Appoggio.indent_level*"\t_u" + \
+                res += Appoggio.indent_level*"\t__u" + \
                     str(var[1]) + " " + str(var[0]) + ";\n"
 
         return_presente = False
@@ -877,12 +885,21 @@ class If(BaseBox):
         return Null()
 
     def to_c(self):
-        result = 'if (' + self.condition.to_c() + ') {\n' \
+        # xxxxxxxxxxxxxxxx BUG xxxxxxxxxxxxxxxx #
+        # Per qualche motivo a volte vengono    #
+        # aggiunte le parentesi di Expression   #
+        # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx #
+        #condition = self.condition.to_c()
+        #if condition[0] == "(" and condition[-1] == ")":
+        #    condition = condition[1:-1]
+        Appoggio.in_if = True
+        result = 'if ('+ self.condition.to_c() + ') {\n' \
             + self.body.to_c() + Appoggio.indent_level*'\t' + '}'
         if type(self.else_body) is not Null:
             result += '\n' + Appoggio.indent_level*'\t' \
                 +'else {\n' + self.else_body.to_c() \
                     + Appoggio.indent_level*'\t' +'}'
+        Appoggio.in_if = False
         return result
 
     def prima_passata(self, env):
