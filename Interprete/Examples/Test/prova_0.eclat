@@ -7,16 +7,9 @@ encap_param = 1
 
 def myChain():
     ip_type = 0xcafe
-    j = (4 + 3) * 2
-    x = 4 + 3 * 2
-    if ((x + 2) + (1+1) == j):
-        z = 3
-    else:
-        z = 2
-    if x < j:
-        a = 1
-    if ((x+5) > j):
-        a = 4
+    a = 250
+    j = 4 + 5 * 3 + a
+    y = j * j
    # z = 5 >> 2          # Shift dx di 2 posizioni: 00101 --> 00001
    # a = 5 >> 0x02       # Shift dx di 2 posizioni: 00101 --> 00001
    # b = 5 << 2          # Shift sx di 2 posizioni: 00101 --> 10100

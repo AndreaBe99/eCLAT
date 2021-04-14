@@ -1,6 +1,6 @@
-#define HIKE_CHAIN_MYCHAIN1_ID 64
-#define HIKE_CHAIN_MYCHAIN2_ID 65
-#define HIKE_CHAIN_MYCHAIN5_ID 66
+#define HIKE_CHAIN_MYCHAIN1_ID 76
+#define HIKE_CHAIN_MYCHAIN2_ID 77
+#define HIKE_CHAIN_MYCHAIN5_ID 78
 #define HIKE_EBPF_PROG_DROP_ANY 12
 #define HIKE_EBPF_PROG_ALLOW_ANY 11
 #define __ETH_PROTO_TYPE_ABS_OFF 12
@@ -42,6 +42,7 @@ HIKE_CHAIN(HIKE_CHAIN_MYCHAIN2_ID) {
 		hike_packet_read_u8(&hop_lim, __IPV6_HOP_LIM_ABS_OFF);
 		if (hop_lim != 64) {
 			hike_elem_call_3(HIKE_CHAIN_MYCHAIN5_ID, allow, eth_type);
+			hike_elem_call_1(HIKE_CHAIN_MYCHAIN1_ID);
 			return 0;
 		}
 		hike_packet_write_u8(__IPV6_HOP_LIM_ABS_OFF, 17);
@@ -49,7 +50,7 @@ HIKE_CHAIN(HIKE_CHAIN_MYCHAIN2_ID) {
 	return 0;
 }
 
-HIKE_CHAIN(HIKE_CHAIN_MYCHAIN5_ID, __u8 allow, __64 eth_type) {
+HIKE_CHAIN(HIKE_CHAIN_MYCHAIN5_ID, __u8 allow, __u16 eth_type) {
 	__u32 prog_id;
 
 	if (allow == 1) {

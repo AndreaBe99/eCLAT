@@ -3,6 +3,7 @@ from re import A, S
 from rply.token import BaseBox
 from integer import Integer
 import csv
+import os.path
 from random import randint
 
 
@@ -11,17 +12,20 @@ from random import randint
 #     PER SCRIVERE LE DICHIARAZIONI       #
 # --------------------------------------- #
 class Appoggio():    
+    file_name_registry = 'Lib/regisrty.csv'
+    file_name_hike_program = "Lib/eclat_program_list.csv"
     in_function = False             # variabile per capire se sono o meno all'interno di una funzione
     indent_level = 0                # Contatore per l'indentazione del file .c
     funzioni_alias = {}             # dict per gli Alias quando assegno una funzione ad un parametro
     funzioni_parametri_locali = {}  # dict costruito alla PRIMA PASSATA contenente le funzioni con associte i parametri in esse contenute
+    tipo_parametri_locali = {}      # dict costruito alla PRIMA PASSATA alias del precedente con all'interno tuple per i tipi
     funzioni_variabili_locali = {}  # dict costruito alla PRIMA PASSATA contenente le funzioni con associte le variabili in esse contenute
     tipo_variabili_locali = {}      # dict costruito alla PRIMA PASSATA alias del precedente con all'interno tuple per i tipi
     variabili_globali = {}          # dict contenente le variabili globali con associato la stringa #define per il file .c
     funzione_corrente = ""          # Variabile di appoggio in cui viene memorizzato il nome della funzione corrente
     hike_program = {}               # dict dei programmi Hike presenti nel file eclat_program_list
     chain_registry = {}             # dict delle Chain prese dal file regisrty
-    net_packet = {}                  # dict provvisorio per la funzione Packet
+    net_packet = {}                 # dict provvisorio per la funzione Packet
     # --------------------------------------- #
     # Queste ultime due variabili mi servono  #
     # per eliminare le parentesi di troppo.   #
@@ -61,9 +65,10 @@ class Program(BaseBox):
     def exec(self, env):
         # ----------------------------------------- #
         # prima passata per "scorrere" le funzioni  #
-        # e le variabili                            #
+        # e le variabili, e per l'escuzione         #
         prima_passata = ""
         for statement in self.statements:
+            result = statement.exec(env)
             prima_passata += statement.prima_passata(env)
         # ----------------------------------------- #
 
@@ -72,8 +77,14 @@ class Program(BaseBox):
         # registry e nel dict con associato un      #
         # contatore                                 #
         funzioni = ""
-        count = 64  # CONTATORE INIZIO PER I #define
-        with open('Lib/regisrty.csv', 'w', newline='') as file:
+        count = 76  # CONTATORE INIZIO PER I #define
+        # if os.path.isfile(Appoggio.file_name_registry):
+        #     with open(Appoggio.file_name_registry, 'r', newline='') as file:
+        #         reader = csv.reader(file, delimiter=';')
+        #         for row in reader:
+        #             count = int(row[2]) + 1
+
+        with open(Appoggio.file_name_registry, 'w', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             for fun in Appoggio.funzioni_variabili_locali:
                 funzioni += "#define " +  "HIKE_CHAIN_" \
@@ -86,10 +97,8 @@ class Program(BaseBox):
         
         # ----------------------------------------- #
         # CONVERTO IN C, Il risultato è in 'output' #
-        result = ""  # SIMULAZIONE ESECUZIONE
         output = "" 
         for statement in self.statements:
-            result = statement.exec(env)
             output += statement.to_c()
         # ----------------------------------------- #
 
@@ -421,7 +430,7 @@ class FromImport(BaseBox):
         trovato = False
         if self.to_co == "hike":
             for statement in self.args.get_statements():
-                with open("lib/eclat_program_list.csv", mode='r') as csv_file:
+                with open(Appoggio.file_name_hike_program, mode='r') as csv_file:
                     string = csv.reader(csv_file, delimiter=';')
                     for row in string:
                         if statement == row[0]:
@@ -551,12 +560,15 @@ class FunctionDeclaration(BaseBox):
         # Faccio lo .split() per separe il TIPO dal #
         # nome della variabile.                     #
         array_parametri = []
+        array_tipo = []
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
                 var = statement.split()
                 if len(var) > 1:
+                    array_tipo.append((statement.split()[1], int(statement.split()[0][1:])))
                     array_parametri.append(statement.split()[1])
                 else:
+                    array_tipo.append((statement.split()[1], 64))
                     array_parametri.append(statement)
 
 
@@ -567,6 +579,7 @@ class FunctionDeclaration(BaseBox):
         if len(array_parametri) > 4:
             raise Exception("You can only pass 4 parameters")
         Appoggio.funzioni_parametri_locali[self.name] = array_parametri
+        Appoggio.tipo_parametri_locali[self.name] = array_tipo
         # ----------------------------------------- #
 
         # ----------------------------------------- #
@@ -790,8 +803,11 @@ class Call(BaseBox):
         # Metto i parametri in una stringa di       #
         # appoggio (parametri)                      #
         # ----------------------------------------- #
+        array_parametri = []
         for statement in self.args.get_statements():
             param_number += 1
+            array_parametri.append(statement.to_c())
+
             # ----------------------------------------- #
             # Se è globale ovvero #define occorre       #
             # fare .upper()                             #
@@ -859,6 +875,32 @@ class Call(BaseBox):
                     + self.name + " is: " \
                         + str(len(Appoggio.funzioni_parametri_locali[self.name])) \
                             + ", found: " + str(param_number))
+            i = 0
+            for parametro in array_parametri:
+                # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
+                # Controllo che il tipo dei parametri, sia  #
+                # corretto, ovvero che corrisponda con      #
+                # quello dichiarato nella chain chiamata    #
+                # - controllo se sto chiamando una chain    #
+                # - controllo se sto passando una variabile #
+                #   o un parametro locale.                  #
+                # - prendo la dimensione e la confronto     #
+                #   con quella del parametro della chain    #
+                if parametro in Appoggio.funzioni_parametri_locali[Appoggio.funzione_corrente]:
+                    indice = Appoggio.funzioni_parametri_locali[Appoggio.funzione_corrente].index(parametro)
+                    dimensione =  Appoggio.tipo_parametri_locali[Appoggio.funzione_corrente][indice][1]
+                    dimensione_corretta = Appoggio.tipo_parametri_locali[self.name][i][1]
+                    if dimensione != int(dimensione_corretta):
+                        raise Exception("Required size '" +
+                                        str(dimensione_corretta) + "', found: '" + str(dimensione) + "'")
+                if parametro in Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente]:
+                    indice = Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente].index(parametro)
+                    dimensione =  Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente][indice][1]
+                    dimensione_corretta = Appoggio.tipo_parametri_locali[self.name][i][1]
+                    if dimensione != int(dimensione_corretta):
+                        raise Exception("Required size '" + \
+                            str(dimensione_corretta) + "', found: '" + str(dimensione) + "'")
+                i += 1
             return hike_elem_call_ + str(param_number+1) \
                 + '(' + find_Program(self.name) + parametri
 

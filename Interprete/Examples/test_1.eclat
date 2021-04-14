@@ -51,7 +51,7 @@ def mychain2():
 #    prog_id(eth_type)
 
 
-def mychain5(allow : u8, eth_type):
+def mychain5(allow : u8, eth_type : u16):
     if allow == true:
         prog_id = allow()
     else:
