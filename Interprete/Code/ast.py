@@ -107,9 +107,9 @@ class Program(BaseBox):
         f.write(output)
         f.close()
 
-        print("\nVARIABILI: ")
-        for var in env.variables:
-            print(var, env.variables[var])
+        #print("\nVARIABILI: ")
+        #for var in env.variables:
+        #    print(var, env.variables[var])
         return result
 
     def get_statements(self):
@@ -494,8 +494,12 @@ class FunctionDeclaration(BaseBox):
         # '__' per il tipo
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
-                res += ', __' + statement
-                #res += ', __u64 ' + statement
+                var = statement.split()
+                if len(var) > 1:
+                    res += ', __' + statement
+                else:
+                    res += ', __64 ' + statement
+
         #result += '\t(\n'
         res += ") {\n"
         Appoggio.indent_level += 1
@@ -549,8 +553,12 @@ class FunctionDeclaration(BaseBox):
         array_parametri = []
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
-                array_parametri.append(statement.split()[1])
-                #array_parametri.append(statement)
+                var = statement.split()
+                if len(var) > 1:
+                    array_parametri.append(statement.split()[1])
+                else:
+                    array_parametri.append(statement)
+
 
         # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
         # Controllo il numero dei parametri, se     #
