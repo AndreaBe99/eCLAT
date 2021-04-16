@@ -12,8 +12,8 @@ from random import randint
 #     PER SCRIVERE LE DICHIARAZIONI       #
 # --------------------------------------- #
 class Appoggio():    
-    file_name_registry = 'Lib/regisrty.csv'
-    file_name_hike_program = "Lib/eclat_program_list.csv"
+    file_name_registry = 'Code/Lib/regisrty.csv'
+    file_name_hike_program = "Code/Lib/eclat_program_list.csv"
     in_function = False             # variabile per capire se sono o meno all'interno di una funzione
     indent_level = 0                # Contatore per l'indentazione del file .c
     funzioni_alias = {}             # dict per gli Alias quando assegno una funzione ad un parametro

@@ -9,7 +9,7 @@ class Lexer():
         self.lexer = LexerGenerator()
 
     def _add_tokens(self):
-        with open("Lib/token.csv", mode='r') as csv_file:
+        with open("Code/Lib/token.csv", mode='r') as csv_file:
             str = csv.reader(csv_file, delimiter = ';')
             for row in str:
                 token_list.append(row[0])
