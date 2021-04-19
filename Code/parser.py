@@ -110,7 +110,7 @@ class Parser():
         
         @self.pg.production('statement : IDENTIFIER = expression')
         def statement_assignment(p):
-            return Assignment(Variable(p[0].getstr()), p[2])
+            return Assignment(p[1], Variable(p[0].getstr()), p[2])
         
         
         @self.pg.production('statement : DEF IDENTIFIER ( arglist ) : NEWLINE block ')

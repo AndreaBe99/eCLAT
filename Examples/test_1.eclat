@@ -47,7 +47,7 @@ def mychain2():
 #    prog_id(eth_type)
 
 def mychain5(allow : u8, eth_type : u16):
-    if allow == true:
+    if allow == 1:
         prog_id = allow()
     else:
         prog_id = drop()

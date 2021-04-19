@@ -1,11 +1,12 @@
 import ast
 from re import A, S
+import re
 from rply.token import BaseBox
 from integer import Integer
 import csv
 import os.path
 from random import randint
-
+import importlib
 
 # --------------------------------------- #
 #           CLASSE DI APPOGGIO            #
@@ -14,7 +15,7 @@ from random import randint
 class Appoggio():    
     file_name_registry = 'Code/Lib/regisrty.csv'
     file_name_hike_program = "Code/Lib/eclat_program_list.csv"
-    in_function = False             # variabile per capire se sono o meno all'interno di una funzione
+    return_presente = False         # variabile per vedere se c'è un return
     indent_level = 0                # Contatore per l'indentazione del file .c
     funzioni_alias = {}             # dict per gli Alias quando assegno una funzione ad un parametro
     funzioni_parametri_locali = {}  # dict costruito alla PRIMA PASSATA contenente le funzioni con associte i parametri in esse contenute
@@ -54,6 +55,10 @@ def find_Program(statement):
         +"\" Hike Program/Function not defined")
 
 
+
+#################################################
+#                   PROGRAM                     #
+#################################################
 class Program(BaseBox):
     def __init__(self, statement):
         self.statements = []
@@ -71,8 +76,6 @@ class Program(BaseBox):
             result = statement.exec(env)
             prima_passata += statement.prima_passata(env)
         # ----------------------------------------- #
-
-        # ----------------------------------------- #
         # Scrivo tutte le funzioni trovate in un    #
         # registry e nel dict con associato un      #
         # contatore                                 #
@@ -83,7 +86,6 @@ class Program(BaseBox):
         #         reader = csv.reader(file, delimiter=';')
         #         for row in reader:
         #             count = int(row[2]) + 1
-
         with open(Appoggio.file_name_registry, 'w', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             for fun in Appoggio.funzioni_variabili_locali:
@@ -94,14 +96,10 @@ class Program(BaseBox):
                     + str(fun.upper())+"_ID", str(count)])
                 count += 1
         # ----------------------------------------- #
-        
-        # ----------------------------------------- #
         # CONVERTO IN C, Il risultato è in 'output' #
         output = "" 
         for statement in self.statements:
             output += statement.to_c()
-        # ----------------------------------------- #
-
         # ----------------------------------------- #
         # Importo i #define di default e            #
         # incollo (in ordine):                      #
@@ -110,12 +108,10 @@ class Program(BaseBox):
         # output = "#include <hike_vm.h>\n" + funzioni + variabili_globali + output
         output = funzioni + output
         # ----------------------------------------- #
-
         print("'eclat_output.c' was generated.")
         f = open("eclat_output.c", "w")
         f.write(output)
         f.close()
-
         #print("\nVARIABILI: ")
         #for var in env.variables:
         #    print(var, env.variables[var])
@@ -125,6 +121,10 @@ class Program(BaseBox):
         return self.statements
 
 
+
+#################################################
+#                     BLOCK                     #
+#################################################
 class Block(BaseBox):
     def __init__(self, statement):
         self.statements = []
@@ -146,6 +146,8 @@ class Block(BaseBox):
         result = ''
         Appoggio.indent_level += 1
         for statement in self.statements:
+            if statement.to_c().split()[0] == "return":
+                Appoggio.return_presente = True
             result += '\t'*Appoggio.indent_level + statement.to_c()
             if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
                 result += ';'
@@ -157,11 +159,22 @@ class Block(BaseBox):
     def prima_passata(self, env):
         result = ""
         for statement in self.statements:
-            if statement.prima_passata(env) != "":
+            if statement.prima_passata(env) != "" and statement.prima_passata(env) != ",":
                 result += statement.prima_passata(env) + ","
-        return result[:-1]
+        array = result.split(",")
+        # Elimina eventuali spazi vuoti delle stringhe
+        array = [i for i in array if i != ""]
+        # Elimina eventuali duplicati
+        array = list(dict.fromkeys(array))
+        Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente] = array
+        result = ", ".join(array)
+        return result
 
 
+
+#################################################
+#                 EXPRESSION                    #
+#################################################
 class Expression(BaseBox):
     def __init__(self, value):
         self.value = value
@@ -186,17 +199,24 @@ class Expression(BaseBox):
             Appoggio.exp_count += 1
         return "(" + self.value.to_c() + ")"
 
+
+
+#################################################
+#                     NULL                      #
+#################################################
 class Null(BaseBox):
     def exec(self, env):
         return self
 
     def prima_passata(self, env):
-        return "Null()"
+        return ""
 
     def to_c(self):
-        #return 'NULL'
-        return 'Null()'
+        return 'Null'
 
+#################################################
+#                    FLOAT                      #
+#################################################
 class Boolean(BaseBox):
     def __init__(self, value):
         self.value = bool(value)
@@ -213,8 +233,9 @@ class Boolean(BaseBox):
         else:
             return "0"
 
-
-#class Integer(Integer):
+#################################################
+#                   INTEGER                     #
+#################################################
 class Integer():
     def __init__(self, value, base):
         self.value = int(value)
@@ -233,7 +254,9 @@ class Integer():
         if self.base == 10:
             return str(self.value)
 
-
+#################################################
+#                     FLOAT                     #
+#################################################
 class Float(BaseBox):
     def __init__(self, value):
         self.value = float(value)
@@ -247,7 +270,9 @@ class Float(BaseBox):
     def to_c(self):
         return str(self.value)
 
-
+#################################################
+#                    STRING                     #
+#################################################
 class String(BaseBox):
     def __init__(self, value):
         self.value = str(value)
@@ -263,6 +288,9 @@ class String(BaseBox):
 
 
 
+#################################################
+#                  VARIABLE                     #
+#################################################
 class Variable(BaseBox):
     def __init__(self, name):
         self.name = str(name)
@@ -303,7 +331,9 @@ class Variable(BaseBox):
 
 
 
-
+#################################################
+#               BINARY OPERATION                #
+#################################################
 class BinaryOperation():
     def __init__(self, operator, left, right):
         self.operator = operator
@@ -364,6 +394,10 @@ class BinaryOperation():
             + self.operator + ' ' + self.right.prima_passata() + ' '
 
 
+
+#################################################
+#                     NOT                       #
+#################################################
 class Not(BaseBox):
     def __init__(self, value):
         self.value = value
@@ -381,6 +415,9 @@ class Not(BaseBox):
         return ""
 
 
+#################################################
+#               BIT-WISE NOT                    #
+#################################################
 class BitWise_Not(BaseBox):
     def __init__(self, value):
         self.value = value
@@ -398,6 +435,9 @@ class BitWise_Not(BaseBox):
 
 
 
+#################################################
+#                 FROM IMPORT                   #
+#################################################
 class FromImport(BaseBox):
     def __init__(self, to_co, args):
         self.to_co = to_co
@@ -410,61 +450,53 @@ class FromImport(BaseBox):
     def to_c(self):
         result = ''
         for statement in self.args.get_statements():
-            if statement[:6] != "Packet":
-                result += '#define ' + Appoggio.hike_program[statement][0] + " " \
-                + Appoggio.hike_program[statement][1] + '\n'
+            path = "Code/Lib/" + self.to_co
+            if os.path.exists(path):
+                if os.path.exists(path  + "/" + str(statement) + ".c"):
+                    result += '\n#define ' + Appoggio.hike_program[statement][0] + " " \
+                        + Appoggio.hike_program[statement][1] + '\n'
+                    result += "#include \"" + path + "/" + str(statement) + ".c\"\n"
+                elif os.path.exists(path + "/" + str(statement) + ".py"):
+                    # ----------------------------------------- #
+                    # Per packet nel .c non devo scrivere nulla #
+                    pass
+                else:
+                    raise Exception(str(self.to_co + "/" + str(statement)) + ".c not found.")
+            else:
+                raise Exception(str(self.to_co) + " not found.")
         return result
-        return self.args.to_c()
 
     def prima_passata(self, env):
-        # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
-        # PER ORA SOLO hike and net                 #
-        # +++++++++++++++++++++++++++++++++++++++++ #
-        if self.to_co != "hike" and self.to_co != "net":
-            raise Exception(str(self.to_co) + " not found.")
-
-        # ----------------------------------------- #
-        # Per ogni programma hike importato leggo i #
-        # valori dal file eclat_program_list.csv e  #
-        # li salvo IN UN DICT PER COMODITA'.        #
-        trovato = False
-        if self.to_co == "hike":
+        path = "Code/Lib/" + self.to_co
+        if os.path.exists(path):
             for statement in self.args.get_statements():
-                with open(Appoggio.file_name_hike_program, mode='r') as csv_file:
-                    string = csv.reader(csv_file, delimiter=';')
-                    for row in string:
-                        if statement == row[0]:
-                            trovato = True
-                            Appoggio.hike_program[row[0]] = [row[1], row[2]]
-                    # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
-                    # Se non trovo il programma nel .csv        #
-                    # +++++++++++++++++++++++++++++++++++++++++ #
-                    if not trovato:
-                        raise Exception("Hike Program '" + statement + "' not found.")
-                    trovato = False
-        # ----------------------------------------- #
-        # Se c'è l'import da net di Packet assegno  #
-        # le funzioni di Packet in un dict.         #
-        if self.to_co == "net":
-            for statement in self.args.get_statements():
-                if statement == "Packet":
-                    Appoggio.net_packet = {
-                        "Packet.readU8": "hike_packet_read_u8(",
-                        "Packet.readU16": "hike_packet_read_u16(",
-                        #"Packet.readU32": "hike_packet_read_u32(",
-                        #"Packet.readU64": "hike_packet_read_u64(",
-                        "Packet.writeU8": "hike_packet_write_u8(",
-                        "Packet.writeU16": "hike_packet_write_u16(",
-                        #"Packet.writeU32": "hike_packet_write_u32(",
-                        #"Packet.writeU54": "hike_packet_write_u64(",
-                    }
+                if os.path.exists(path + "/" + str(statement) + ".c"):
+                    # ----------------------------------------- #
+                    # Per ogni programma hike importato leggo i #
+                    # valori dal file eclat_program_list.csv e  #
+                    # li salvo IN UN DICT PER COMODITA'.        #
+                    with open(Appoggio.file_name_hike_program, mode='r') as csv_file:
+                        string = csv.reader(csv_file, delimiter=';')
+                        for row in string:
+                            if statement == row[0]:
+                                Appoggio.hike_program[row[0]] = [row[1], row[2]]
+                elif os.path.exists(path + "/" + str(statement) + ".py"):
+                    path = path.replace("/", ".")
+                    # ----------------------------------------- #
+                    # Importo le funzioni di packet.py          #
+                    Appoggio.import_module = importlib.import_module(
+                        path + "." + str(statement), str(statement))
                 else:
-                    # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
-                    # Per ora NET ammette solo Packet           #
-                    # +++++++++++++++++++++++++++++++++++++++++ #
-                    raise Exception("Net Class '" + statement + "' not found.")
+                    raise Exception(str(self.to_co + "/" + str(statement)) + ".c not found.")
+        else:
+            raise Exception(str(self.to_co) + " not found.")
         return ""
 
+
+
+#################################################
+#                    IMPORT                     #
+#################################################
 class Import(BaseBox):
     def __init__(self, args):
         self.args = args
@@ -482,6 +514,11 @@ class Import(BaseBox):
     def prima_passata(self, env):
         return ""
 
+
+
+#################################################
+#            FUNCTION DECLARATION               #
+#################################################
 class FunctionDeclaration(BaseBox):
     def __init__(self, name, args, block):
         self.name = name
@@ -490,57 +527,46 @@ class FunctionDeclaration(BaseBox):
 
     def exec(self, env):
         self.block.exec(env)
-        #raise LogicError("Cannot assign to this")
 
     def to_c(self):
-        Appoggio.in_function = True
         Appoggio.funzione_corrente = self.name
-
-        res = "\nHIKE_CHAIN(" + find_Program(self.name)
-
-        # ----------------------------------------- #
-        # Se la funzione ha parametri?              #
-        # '__' per il tipo
+        result = ""
+        #result = "\nHIKE_CHAIN(" + find_Program(self.name)
+        # -------------------------------------------- #
+        # Se la funzione ha parametri '__' per il tipo #
+        param_number = 1
         if isinstance(self.args, Array):
             for statement in self.args.get_statements():
+                param_number += 1
                 var = statement.split()
                 if len(var) > 1:
-                    res += ', __' + statement
+                    result += ', __' + statement
                 else:
-                    res += ', __64 ' + statement
-
-        #result += '\t(\n'
-        res += ") {\n"
+                    result += ', __64 ' + statement
+        result += ") {\n"
         Appoggio.indent_level += 1
-
-        ### PASTE VARIABLE
-        # Se esistono variabili locali
+        result = "\nHIKE_CHAIN_" + str(param_number) + "(" + find_Program(self.name) + result
+        # -------------------------------------------- #
+        # Se esistono variabili locali, Le INCOLLO     #
         if len(Appoggio.tipo_variabili_locali[self.name]) != 0:
             for var in Appoggio.tipo_variabili_locali[self.name]:
-                res += Appoggio.indent_level*"\t__u" + \
+                result += Appoggio.indent_level*"\t__u" + \
                     str(var[1]) + " " + str(var[0]) + ";\n"
-
-        return_presente = False
-        result = ''
-        for statement in self.block.get_statements():
-            # Se c'è lo statement RETURN non c'è bisogno di inserirlo
-            if statement.to_c().split()[0] == "return":
-                return_presente = True
-            result += '\n' + '\t'*Appoggio.indent_level + statement.to_c()
-            if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
-                result += ';'
-
-        # RETURN statement trovato
-        if return_presente:
+        # -------------------------------------------- #
+        # Richiamo il body della funzione              #
+        Appoggio.indent_level -= 1
+        Appoggio.return_presente = False
+        result += self.block.to_c()
+        Appoggio.indent_level += 1
+        # -------------------------------------------- #
+        # Controllo se è stato scritto il RETURN       #
+        # statement, se NO lo scrivo in automatico     #
+        if Appoggio.return_presente:
             result += '\n' + '\t'*Appoggio.indent_level
-        # RETURN statement NON trovato metto RETURN 0 di default
         else:
             result += '\n' + '\t'*Appoggio.indent_level + 'return 0;'
         result += '\n}\n'
-
-        result = res + result
         Appoggio.indent_level -= 1
-        Appoggio.in_function = False
         Appoggio.funzione_corrente = ""
         return result
 
@@ -548,17 +574,14 @@ class FunctionDeclaration(BaseBox):
         # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
         # Controllo se sia già stata dichiarata     #
         # +++++++++++++++++++++++++++++++++++++++++ #
-        if self.name in Appoggio.funzioni_variabili_locali or self.name in Appoggio.net_packet:
+        if self.name in Appoggio.funzioni_variabili_locali or \
+                self.name in Appoggio.funzioni_parametri_locali:
             raise Exception("Function \"" + str(self.name) + "\" already exists.")
-
-        Appoggio.in_function = True
         Appoggio.funzione_corrente = self.name
-
         # ----------------------------------------- #
         # Metto i parametri in un dict              #
-        #                   PROVA                   #
         # Faccio lo .split() per separe il TIPO dal #
-        # nome della variabile.                     #
+        # nome della variabile. DEFAULT A 64        #
         array_parametri = []
         array_tipo = []
         if isinstance(self.args, Array):
@@ -570,8 +593,6 @@ class FunctionDeclaration(BaseBox):
                 else:
                     array_tipo.append((statement.split()[1], 64))
                     array_parametri.append(statement)
-
-
         # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
         # Controllo il numero dei parametri, se     #
         # giusto lo assegno al dict                 #
@@ -581,42 +602,19 @@ class FunctionDeclaration(BaseBox):
         Appoggio.funzioni_parametri_locali[self.name] = array_parametri
         Appoggio.tipo_parametri_locali[self.name] = array_tipo
         # ----------------------------------------- #
-
+        # Eseguo Block il quale mette le variabili  #
+        # locali in un dict                         #
+        result = self.block.prima_passata(env)
         # ----------------------------------------- #
-        # Metto le variabili locali in un dict      #
-        result = []
-        for statement in self.block.get_statements():
-            array_appoggio = statement.prima_passata(env).split(",")
-            for var in array_appoggio:
-                # Nel caso in cui sia un parametro
-                if not var in Appoggio.funzioni_parametri_locali[self.name]:
-                    result.append(var)
-        # Elimina eventuali spazi vuoti delle stringhe e i return Null()
-        result = [i for i in result if i != "" and i != "Null()"]
-        # Elimina eventuali duplicati
-        result = list(dict.fromkeys(result))
-        Appoggio.funzioni_variabili_locali[str(self.name)] = result
-        # ----------------------------------------- #
-        
-        Appoggio.in_function = False
         Appoggio.funzione_corrente = ""
         return str(self.name)
 
 
-class BinaryOp(BaseBox):
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
 
-    def to_c(self):
-        return 'BinaryOp(%s, %s)' % (self.left.to_c(), self.right.to_c())
-
-    def prima_passata(self, env):
-        return self.left.prima_passata() + self.right.prima_passata()
-
-
-
-class Assignment(BinaryOp):
+#################################################
+#                 ASSIGNMENT                    #
+#################################################
+class Assignment(BinaryOperation):
     def exec(self, env):
         if isinstance(self.left, Variable):
             if type(self.right) is BinaryOperation:
@@ -626,10 +624,8 @@ class Assignment(BinaryOp):
             else:
                 env.variables[self.left.getname()] = self.right.value
             return self.right.exec(env)
-            # otherwise raise error
-            #raise ImmutableError(self.left.getname())
         else:
-            raise LogicError("Cannot assign to this")
+            raise Exception("Cannot assign to this")
 
     def to_c(self):
         # ----------------------------------------- #
@@ -637,9 +633,15 @@ class Assignment(BinaryOp):
         # ----------------------------------------- #
         if type(self.right) is Call:
             # Se corrisponde ad una Packet.read
-            if self.right.name[:11] == "Packet.read":
-                return Appoggio.net_packet[self.right.name] + "&" \
-                    + self.left.getname() + self.right.to_c()
+            if not self.right.name in Appoggio.hike_program and \
+                not self.right.name in Appoggio.chain_registry and \
+                    not self.right.name in Appoggio.funzioni_alias:
+                # Se corrisponde ad una Packet.read
+                try:
+                    a = getattr(Appoggio.import_module, str(self.right.name)[7:])
+                    return a() + "&" + self.left.getname() + self.right.to_c()
+                except Exception as e:
+                    raise Exception("Packet Class unknow.", e)   
         # ----------------------------------------- #
         # Se sono all'interno di una funzione       #
         # ----------------------------------------- #
@@ -659,18 +661,13 @@ class Assignment(BinaryOp):
             # associata la stringa tradotta in .c       #
             # ----------------------------------------- #
             if self.left.getname() in Appoggio.variabili_globali:
-                ##############  PROBLEMA  ##############
-                # COME VIENE SOVRASCITTO IL VALORE ??? #
-                #    Per adesso faccio un #undef       #
-                ########################################
                 return '#undef ' + self.left.getname().upper() \
                     + "\n#define " + self.left.getname().upper() + ' ' + \
                     str(self.right.to_c()) + '\n'
             else:
-                Appoggio.variabili_globali[self.left.getname()] = '#define '\
+                Appoggio.variabili_globali[self.left.getname()] = '\n#define '\
                     + self.left.getname().upper() + ' ' + str(self.right.to_c()) + '\n'
                 return Appoggio.variabili_globali[self.left.getname()]
-
 
     def prima_passata(self, env):
         # ----------------------------------------- #
@@ -700,8 +697,6 @@ class Assignment(BinaryOp):
             if not self.left.getname() in Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente] and \
                 not self.left.getname() in Appoggio.funzioni_parametri_locali[Appoggio.funzione_corrente]:
                 Appoggio.funzioni_variabili_locali[Appoggio.funzione_corrente].append(self.left.getname()) 
-
-
                 # ----------------------------------------- #
                 # Se è una Call controllo se è una Packet   #
                 # in tal caso deduco la dimensione.         #
@@ -719,6 +714,21 @@ class Assignment(BinaryOp):
                         elif self.right.name[11:] == "U64" or self.right.name[12:] == "U64":
                             Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
                     else:
+                        # ----------------------------------------- #
+                        # Se la parte destra è una call significa   #
+                        # che sto facendo una ALIAS                 #
+                        # ----------------------------------------- #
+                        chiavi = Appoggio.funzioni_alias.keys()
+                        if self.left.getname() in chiavi:
+                            Appoggio.funzioni_alias[self.left.getname()].append(
+                                self.right.name)
+                        else:
+                            Appoggio.funzioni_alias[self.left.getname()] = [
+                                self.right.name]
+                        # Elimina eventuali duplicati
+                        appoggio = Appoggio.funzioni_alias[self.left.getname()]
+                        Appoggio.funzioni_alias[self.left.getname()] = list(
+                            dict.fromkeys(appoggio))
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
                 else:
                     if self.right.exec(env) < 2**8 - 1:
@@ -729,53 +739,15 @@ class Assignment(BinaryOp):
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
                     elif 2**32 - 1 < self.right.exec(env) < 2**64 - 1:
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
-                # ----------------------------------------- #
-                # Se assegno un numero, tramite la formula  #
-                # calcolo la dimensione.                    #
-                # ----------------------------------------- #
-                # elif type(self.right) is Integer or type(self.right) is Float:
-                #     if int(self.right.exec(env)) < 2**8 -1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
-                #     if 2**8 - 1 < int(self.right.exec(env)) < 2**16 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
-                #     if 2**16 - 1 < int(self.right.exec(env)) < 2**32 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
-                #     if 2**32 - 1 < int(self.right.exec(env)) < 2**64 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
-                # ----------------------------------------- #
-                # Se è un espressione matematica, la eseguo #
-                # e guardo il risultato finale, e tramite   #
-                # la formula calcolo la dimensione          #
-                # ----------------------------------------- #
-                # elif type(self.right) is BinaryOperation:
-                #     if self.right.exec(env) < 2**8 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 8))
-                #     if 2**8 - 1 < self.right.exec(env) < 2**16 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 16))
-                #     if 2**16 - 1 < self.right.exec(env) < 2**32 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 32))
-                #     if 2**32 - 1 < self.right.exec(env) < 2**64 - 1:
-                #         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
                     else:
                         Appoggio.tipo_variabili_locali[Appoggio.funzione_corrente].append((self.left.getname(), 64))
-
-            # ----------------------------------------- #
-            # Se la parte destra è una call significa   #
-            # che sto facendo una ALIAS                 #
-            # ----------------------------------------- #
-            if type(self.right) is Call:
-                chiavi = Appoggio.funzioni_alias.keys()
-                if self.left.getname() in chiavi:
-                    Appoggio.funzioni_alias[self.left.getname()].append(self.right.name)
-                else:
-                    Appoggio.funzioni_alias[self.left.getname()] = [self.right.name]
-                # Elimina eventuali duplicati
-                appoggio = Appoggio.funzioni_alias[self.left.getname()]
-                Appoggio.funzioni_alias[self.left.getname()] = list(dict.fromkeys(appoggio))
-
         return str(self.left.getname())
 
 
+
+#################################################
+#                    CALL                       #
+#################################################
 class Call(BaseBox):
     def __init__(self, name, args):
         self.name = name
@@ -787,16 +759,6 @@ class Call(BaseBox):
         return result
 
     def to_c(self):
-        # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
-        # Controllo se è un programma hike, chain,  #
-        # o un alias di una chai o programma hike   #
-        # ------------------------------------------#
-        if not self.name in Appoggio.hike_program and \
-            not self.name in Appoggio.chain_registry and \
-                not self.name in Appoggio.funzioni_alias and \
-                    not self.name in Appoggio.net_packet.keys():
-            raise Exception("'" +str(self.name) + "' does not exist")
-        
         parametri = ''      # Stringa dei parametri
         param_number = 0    # Numero parametri trovati
         # ----------------------------------------- #
@@ -807,7 +769,6 @@ class Call(BaseBox):
         for statement in self.args.get_statements():
             param_number += 1
             array_parametri.append(statement.to_c())
-
             # ----------------------------------------- #
             # Se è globale ovvero #define occorre       #
             # fare .upper()                             #
@@ -817,43 +778,21 @@ class Call(BaseBox):
             else:
                 parametri += ', ' + statement.to_c()
         parametri += ')'
-
-        # ----------------------------------------- #
-        # Se è una funzione Packet                  #
-        # ----------------------------------------- #
-        if self.name in Appoggio.net_packet:
-            # ----------------------------------------- #
-            # Se corrisponde alla funzione Packet.wtite # 
-            # ----------------------------------------- #
-            if self.name[:12] == "Packet.write":
-                return Appoggio.net_packet[self.name] + \
-                    self.args.get_statements()[0].to_c() +", " \
-                        + self.args.get_statements()[1].to_c() + ')'
-            # ----------------------------------------- #
-            # Se corrisponde alla funzione Packet.read, # 
-            # prende come primo parametro la variabile  #
-            # .left dell'Assignment sotto forma di      #
-            # puntatore (&var) mentre come parametri    #
-            # i parametri passati a Packet.read         #
-            #                                           #
-            # QUESTO LO FACCIO IN ASSIGNEMT()           #
-            # ----------------------------------------- #
-            if self.name[:11] == "Packet.read":
-                return parametri
-
         # -------------------------------------------#
         # Quando faccio una Call la funzione         #
         # potrebbe essere:                           #
-        # - un programma eCLAT,                      #
-        #   contenuto in eclat_program_list.csv      #
-        # - una chain, contenuta in registry.csv     #
         # - un alias, ovvero una variabile a cui     #
         #   è stato assegnato un programma eCLAT     #
         #   o una chain.                             #
+        # - una chain, contenuta in registry.csv     #
+        # - un programma HIKE,                       #
+        #   contenuto in eclat_program_list.csv      #
+        # - una funzione di PACKET                   #
         # -------------------------------------------#
         hike_elem_call_ = 'hike_elem_call_'
-
-        #-------- Controllo se è un alias -----------#
+        # ------------------------------------------- #
+        #         Controllo se è un alias             #
+        # ------------------------------------------- #
         if self.name in Appoggio.funzioni_alias:
             ##############  PROBLEMA  #################
             # NON POSSO FARE L'ESECUZIONE ESSENDO A   #
@@ -864,8 +803,9 @@ class Call(BaseBox):
             # SARA' UNA CHAIN O UN PROGRAMMA eCLAT    #
             ###########################################
             return hike_elem_call_ + str(param_number+1) + '(' + self.name + parametri
-
-        #------- Controllo se è una chain  ----------#
+        # ------------------------------------------- #
+        #         Controllo se è una chain            #
+        # ------------------------------------------- #
         if self.name in Appoggio.chain_registry:
             # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
             # Controllo che il numero di parametri      #
@@ -903,22 +843,29 @@ class Call(BaseBox):
                 i += 1
             return hike_elem_call_ + str(param_number+1) \
                 + '(' + find_Program(self.name) + parametri
-
-        #-------- Controllo se è importata ----------#
+        # ------------------------------------------- #       
+        #      Controllo se è un hike Program         #
+        # ------------------------------------------- #
         if self.name in Appoggio.hike_program:
-            ##############  PROBLEMA  #################
-            # CONTROLLO NUMERO PARAMETRI MAX 4 ????   #
-            ###########################################
-
             # +++++++++++ CONTROLLO ERRORE ++++++++++++ #
             # Controllo che il numero di parametri      #
             # passati sia al più 4                      #
             if param_number > 4:
                 raise Exception("The expected number of parameter in " \
                     + self.name + " is max 4, found: " + str(param_number))
-
             return hike_elem_call_ + str(param_number+1) \
                 + '(' + Appoggio.hike_program[self.name][0] + parametri
+        # ----------------------------------------- #
+        #    Controllo se è una funzione PACKET     #
+        # Se è una funzione Packet, richiamo la     #
+        # classe packet se è stata importata        #
+        # correttamente.
+        # ----------------------------------------- #
+        try:
+            a = getattr(Appoggio.import_module, str(self.name)[7:])
+            return a(parametri)
+        except Exception as e:
+            raise Exception("Packet Class unknow.", e) 
 
     def prima_passata(self, env):
         # -------------------------------------------#
@@ -933,6 +880,10 @@ class Call(BaseBox):
         return ''
 
 
+
+#################################################
+#                    RETURN                     #
+#################################################
 class Return(BaseBox):
     def __init__(self, value):
         self.value = value
@@ -941,9 +892,8 @@ class Return(BaseBox):
         return self.value.exec(env)
 
     def to_c(self):
-        if self.value.to_c() == "Null()":
+        if self.value.to_c() == "Null":
             return "return 0"
-            #return "return XDP_ABORTED"
         return 'return %s' % (self.value.to_c())
 
     def prima_passata(self, env):
@@ -951,6 +901,9 @@ class Return(BaseBox):
 
 
 
+#################################################
+#                      IF                       #
+#################################################
 class If(BaseBox):
     def __init__(self, condition, body, else_body=Null()):
         self.condition = condition
@@ -982,7 +935,6 @@ class If(BaseBox):
         if Appoggio.exp_count > 1:
             condition = condition[1:-1]
         Appoggio.in_condition = False
-
         result = 'if ('+ condition + ') {\n' \
             + self.body.to_c() + Appoggio.indent_level*'\t' + '}'
         if type(self.else_body) is not Null:
@@ -995,6 +947,10 @@ class If(BaseBox):
         return self.body.prima_passata(env) + "," + self.else_body.prima_passata(env)
 
 
+
+#################################################
+#                    ELSE                       #
+#################################################
 class Else(BaseBox):
     def __init__(self, else_body=Null()):
         self.else_body = else_body
@@ -1010,6 +966,10 @@ class Else(BaseBox):
         return self.else_body.prima_passata(env)
 
 
+
+#################################################
+#                    WHILE                      #
+#################################################
 class While(BaseBox):
     def __init__(self, condition, body):
         self.condition = condition
@@ -1034,13 +994,12 @@ class While(BaseBox):
         # Infatti se c'è più di un Expression     #
         # tra quelle trovate le parentesi non     #
         # necessarie.                             #
-        # --------------------------------------- #
         Appoggio.in_condition = True
         condition = self.condition.to_c()
         if Appoggio.exp_count > 1:
             condition = condition[1:-1]
         Appoggio.in_condition = False
-
+        # --------------------------------------- #
         result = 'while (' + condition \
             + ') {\n' + self.body.to_c() \
                 + Appoggio.indent_level*'\t' + '}'
