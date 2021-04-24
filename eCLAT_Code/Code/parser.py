@@ -1,15 +1,16 @@
 from rply import ParserGenerator
-from Code.ast import *
-from Code.lexer import token_list
+from eCLAT_Code.Code.ast import *
+from eCLAT_Code.Code.lexer import token_list
 
 
 class Parser():
     def __init__(self):
         self.pg = ParserGenerator(token_list,
         precedence = [
+            ('left', [':']),
             ('left', ['=']),
             ('left', ['[', ']', ',']),
-            ('left', ['IF', ':', 'ELSE', 'END', 'NEWLINE', 'WHILE', ]),
+            ('left', ['IF', 'ELSE', 'END', 'NEWLINE', 'WHILE', ]),
             ('left', ['AND', 'OR', ]),
             ('left', ['NOT', ]),
             ('left', ['==', '!=', '>=', '>', '<', '<=', ]),
@@ -107,7 +108,24 @@ class Parser():
             #p[2].push(Variable(p[0].getstr()))
             return p[2]
         
+
+
+        @self.pg.production('statement : IDENTIFIER : type = expression')
+        def statement_declaration_expression(p):
+            return VariableDeclaration(Variable(p[0].getstr()), p[2].getstr(), p[4])
+
+
+        @self.pg.production('statement : IDENTIFIER : type')
+        def statement_declaration(p):
+            return VariableDeclaration(Variable(p[0].getstr()), p[2].getstr())
         
+        @self.pg.production('type : U8')
+        @self.pg.production('type : U16')
+        @self.pg.production('type : U32')
+        @self.pg.production('type : U64')
+        def statement_type(p):
+            return p[0]
+
         @self.pg.production('statement : IDENTIFIER = expression')
         def statement_assignment(p):
             return Assignment(p[1], Variable(p[0].getstr()), p[2])
@@ -268,4 +286,6 @@ class Parser():
             raise Exception("Incorrect syntax, " + str(token) + " not recognized.")
 
     def get_parser(self):
-        return self.pg.build()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return self.pg.build()

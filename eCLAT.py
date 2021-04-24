@@ -5,29 +5,17 @@ __title__ = "eCLAT"
 __version__ = "2.0"
 __status__ = "unreleased"
 __author__ = "Andrea Bernini"
-__date__ = "2021 Marzo 03"
+__date__ = "2021 Aprile 26"
 
 
 import sys
-import argparse
 import re
-from Code.lexer import Lexer
-from Code.parser import Parser
-
-from rply.errors import ParserGeneratorWarning
-import warnings
-
-
-# Soppressione dei Token inutilizzati
-if not sys.warnoptions:
-    warnings.simplefilter("ignore")
-    warnings.warn("deprecated", ParserGeneratorWarning)
-
+from eCLAT_Code.Code.lexer import Lexer
+from eCLAT_Code.Code.parser import Parser
 
 class Environment(object):
     def __init__(self):
         self.variables = {}
-
 
 def run_file(args):
     fname = args
@@ -122,15 +110,15 @@ def detect_indent(lexer, source):
 
 
 ######### PER DEBUG ##########
-#run_file("Examples/test_1.eclat")
-#run_file("Examples/test/prova_0.eclat")
+run_file("eCLAT_Code/Examples/Test_1/test_1.eclat")
+#run_file("Examples/classificatore.eclat")
 ##############################
 
-#""""
+"""
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)
     parser.add_argument('--run', type=run_file, help='Interpreter')
 
     args = parser.parse_args()
-#""""
+#"""
