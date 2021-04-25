@@ -4,7 +4,7 @@ from hike import drop, allow
 __eth_proto_type_abs_off = 12
 __ipv6_hop_lim_abs_off = 21
 
-nameSpace("namespace1")
+nameSpace("test_1")
 
 def mychain1():
     Packet.readU16(__eth_proto_type_abs_off)

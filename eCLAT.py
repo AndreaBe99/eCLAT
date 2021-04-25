@@ -12,6 +12,7 @@ import sys
 import re
 from eCLAT_Code.Code.lexer import Lexer
 from eCLAT_Code.Code.parser import Parser
+import argparse
 
 class Environment(object):
     def __init__(self):
@@ -110,11 +111,11 @@ def detect_indent(lexer, source):
 
 
 ######### PER DEBUG ##########
-run_file("eCLAT_Code/Examples/Test_1/test_1.eclat")
+#run_file("eCLAT_Code/Examples/Test_1/test_1.eclat")
 #run_file("Examples/classificatore.eclat")
 ##############################
 
-"""
+#"""
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + __version__)

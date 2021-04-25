@@ -5,12 +5,13 @@ __eth_proto_type_abs_off = 12
 __ipv4_total_len_abs_off = 16
 __ipv6_hop_lim_abs_off = 21
 
+nameSpace("test_2")
 
 def mychain1():
-    hop_lim : u8
-    allow : u8 = 1
-    ip4_len : u8
-    eth_type : u16 = Packet.readU16(__eth_proto_type_abs_off)
+    hop_lim: u8
+    allow: u8 = 1
+    ip4_len: u16
+    eth_type: u16 = Packet.readU16(__eth_proto_type_abs_off)
 
     if (eth_type == 0x800):
         ip4_len = Packet.readU16(__ipv4_total_len_abs_off)
@@ -33,8 +34,8 @@ def mychain1():
 
 
 def mychain5(allow: u8, eth_type: u16):
-    drop : u64 = "drop"
-    prog_id : u32
+    drop: u64 = "drop"
+    prog_id: u32
     if allow == 1:
         prog_id = getId("allow")
     else:

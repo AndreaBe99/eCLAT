@@ -16,23 +16,46 @@ from eCLAT_Code.Code.path import Path
 #     PER SCRIVERE LE DICHIARAZIONI       #
 # --------------------------------------- #
 class Appoggio():
-    # Variabile di appoggio in cui viene memorizzato il nome della funzione corrente
+    # Variabile di appoggio in cui viene memorizzato il nome 
+    # della funzione corrente
     funzione_corrente = ""
-    return_presente = False         # variabile per vedere se c'è un return
-    indent_level = 0                # Contatore per l'indentazione del file .c
-    # Questa stringa mi serve, durante un assignement, per memorizzare il nome
+
+    # variabile per vedere se c'è un return
+    return_presente = False      
+
+    # Contatore per l'indentazione del file .c
+    indent_level = 0    
+
+    # Questa stringa mi serve, durante un assignement, per 
+    # memorizzare il nome della variabile a sinistra per 
+    # riutilizzarala nella Packet.read
     var_packet_read = ""
-    # della variabile a sinistra per riutilizzarala nella Packet.read
+
     # dict per gli Alias quando assegno una funzione ad un parametro
     funzioni_alias = {}
-    # dict contenente le variabili globali con associato la stringa #define per il file .c
+
+    # dict contenente le variabili globali con associato la 
+    # stringa #define per il file .c
     variabili_globali = {}
+
+    # dict avente come chiavi le chain dichiarate e come valore per
+    # ogni chiave un dict che ha come chiavi le variabili e gli
+    # argomenti locali a cui è associato un array contenente la
+    # dimensione (u8, u16 ecc), il valore della variabile, se è
+    # una variabile (VAR) o un argomento (ARG), se la dimensione è
+    # stata messa manualmente (DECLARED) o no (UNDECLARED).
+    # [dimension, value, "VAR"/"ARG", "DECLARED"/"UNDECLARED"]
     variabili_locali = {}
+
     # dict dei programmi Hike presenti nel file eclat_program_list
     hike_program = {}
-    chain_registry = {}             # dict delle Chain prese dal file regisrty
-    net_packet = {}                 # dict provvisorio per la funzione Packet
+
+    # dict delle Chain prese dal file regisrty
+    chain_registry = {}  
+
+    # Variabile per memorizzare il name space              
     name_space = ""
+
     # --------------------------------------- #
     # Queste ultime due variabili mi servono  #
     # per eliminare le parentesi di troppo.   #
@@ -45,21 +68,20 @@ class Appoggio():
     # --------------------------------------- #
     # variabile usata per dire se sono all'interno di una condizione (if/while)
     in_condition = False
-    exp_count = 0                   # contatore per le condizioni (if/while)
+    # contatore per le condizioni (if/while)
+    exp_count = 0                  
 
 # --------------------------------------- #
 #           FUNZIONE PROVVISORIA          #
 # Trova il programma nei file se presente #
 # --------------------------------------- #
-
-
 def find_Program(statement):
     if statement in Appoggio.hike_program:
         return str(Appoggio.hike_program[statement][0]) \
             + " " + str(Appoggio.hike_program[statement][1])
-    if statement in Appoggio.variabili_locali:
+    if statement in Appoggio.chain_registry:
         return "HIKE_CHAIN_" \
-            + str(statement).upper() + "_ID"
+            + str(Appoggio.chain_registry[statement]) + "_ID"
     raise Exception("\"" + statement
                     + "\" Hike Program/Function not defined")
 
@@ -84,17 +106,15 @@ class Program(BaseBox):
             result = statement.exec(env)
             prima_passata += statement.prima_passata(env)
         # ----------------------------------------- #
-        # Scrivo tutte le funzioni trovate in un    #
-        # registry e nel dict con associato un      #
-        # contatore                                 #
+        # Controllo se le funzioni dichiarate sono  #
+        # già esistenti, in basse al NameSpace      #
+        # fornito, allo stesso tempo metto i valori #
+        # in un dict "dict_registry".               #
         funzioni = ""
-        count = 74  # CONTATORE INIZIO PER I #define
-        # if os.path.isfile(Appoggio.file_name_registry):
-        #     with open(Appoggio.file_name_registry, 'r', newline='') as file:
-        #         reader = csv.reader(file, delimiter=';')
-        #         for row in reader:
-        #             count = int(row[2]) + 1
+        count = 74 
         name_space = Appoggio.name_space
+        if name_space == "":
+            raise Exception("NameSpace not found.")
         dict_registry = {}
         if os.path.exists(Path.registry_path):
             with open(Path.registry_path, mode='r') as csv_file:
@@ -103,18 +123,29 @@ class Program(BaseBox):
                     dict_registry[int(row[0])] = row[1:]
                     if len(row)>1:
                         if row[1] == name_space:
-                            raise Exception("NameSpace already exist.")
+                            if row[2] in Appoggio.variabili_locali:
+                                raise Exception("Function '" + row[2] + \
+                                    "' in NameSpace '"+ name_space+"' already exist.")
                         count = int(row[0])
         count += 1
+        # ----------------------------------------- #
+        # Aggiorno il "dict_regisrty" e scrivo le   #
+        # chain da aggiungere al file .c            #
         for fun in Appoggio.variabili_locali:
             dict_registry[count] = [name_space, fun]
             funzioni += "#define " + "HIKE_CHAIN_" + str(count) \
                         + "_ID" + " " + str(count) + "\n"
             count += 1
+        # ----------------------------------------- #
+        # Riscrivo il file regisrty.csv con i       #
+        # i valori aggiornati e riempio il dict     #
+        # "chain_registry" che mi serivirà per      #
+        # repire gli ID delle chain.                #
         with open(Path.registry_path, 'w', newline='') as csv_file:
             writer = csv.writer(csv_file, delimiter=';')
             for row in dict_registry:
                 if len(dict_registry[row]) > 1:
+                    Appoggio.chain_registry[dict_registry[row][1]] = row
                     writer.writerow([row, dict_registry[row][0], dict_registry[row][1]])
                 else:
                     writer.writerow([row])
@@ -226,10 +257,8 @@ class Null(BaseBox):
         return 'Null'
 
 #################################################
-#                    FLOAT                      #
+#                    BOOLEAN                    #
 #################################################
-
-
 class Boolean(BaseBox):
     def __init__(self, value):
         self.value = bool(value)
@@ -249,8 +278,6 @@ class Boolean(BaseBox):
 #################################################
 #                   INTEGER                     #
 #################################################
-
-
 class Integer():
     def __init__(self, value, base):
         self.value = int(value)
@@ -269,11 +296,10 @@ class Integer():
         if self.base == 10:
             return str(self.value)
 
+
 #################################################
 #                     FLOAT                     #
 #################################################
-
-
 class Float(BaseBox):
     def __init__(self, value):
         self.value = float(value)
@@ -287,11 +313,10 @@ class Float(BaseBox):
     def to_c(self, env):
         return str(self.value)
 
+
 #################################################
 #                    STRING                     #
 #################################################
-
-
 class String(BaseBox):
     def __init__(self, value):
         self.value = str(value)
@@ -557,8 +582,10 @@ class VariableDeclaration(BaseBox):
             return "__" + str(self.dimension).lower() + " " + str(self.name.getname())
         else:
             if type(self.value) is String:
-                return "__" + str(self.dimension).lower() + " " + \
+                return "char " + \
                     str(self.name.getname()) + "[] = " + self.value.to_c(env)
+                # return "__" + str(self.dimension).lower() + " " + \
+                #     str(self.name.getname()) + "[] = " + self.value.to_c(env)
             Appoggio.var_packet_read = self.name.getname()
             return "__" + str(self.dimension).lower() + " " + \
                 str(self.name.getname()) + " = " + self.value.to_c(env)
@@ -570,8 +597,8 @@ class VariableDeclaration(BaseBox):
             Appoggio.variabili_locali[Appoggio.funzione_corrente][self.name.getname()] = [
                 self.dimension, "Null()", "VAR", "DECLARED"]
         else:
-            Appoggio.variabili_locali[Appoggio.funzione_corrente][self.name.getname(
-            )] = [self.dimension, self.value.to_c(env), "VAR", "DECLARED"]
+            Appoggio.variabili_locali[Appoggio.funzione_corrente][self.name.getname()] = [
+                self.dimension, self.value.prima_passata(env), "VAR", "DECLARED"]
         return ""
 
 
@@ -611,7 +638,7 @@ class FunctionDeclaration(BaseBox):
                     str(array_var_appoggio[0]) + ";\n"
         arg += ") {\n"
         result = "\nHIKE_CHAIN_" + \
-            str(len(array_arg_appoggio)) + "(" + find_Program(self.name) + arg
+            str(len(array_arg_appoggio)+1) + "(" + find_Program(self.name) + arg
         # -------------------------------------------- #
         # Se esistono variabili locali, Le INCOLLO     #
         result += var
@@ -727,15 +754,18 @@ class Assignment(BinaryOperation):
         # default U64 e lancio un Warning di avviso #
         if Appoggio.funzione_corrente != "":
             if type(self.right) is Call:
-                Appoggio.funzioni_alias[self.left.getname()] = self.right.to_c(env)
+                #Appoggio.funzioni_alias[self.left.getname()] = self.right.to_c(env)
+                Appoggio.funzioni_alias[self.left.getname()] = self.right.prima_passata(env)
             if Appoggio.funzione_corrente in Appoggio.variabili_locali:
                 if self.left.getname() in Appoggio.variabili_locali[Appoggio.funzione_corrente]:
                     dim_value = Appoggio.variabili_locali[Appoggio.funzione_corrente][self.left.getname()]
-                    dim_value[1] = self.right.to_c(env)
+                    #dim_value[1] = self.right.to_c(env)
+                    dim_value[1] = self.right.prima_passata(env)
                     Appoggio.variabili_locali[Appoggio.funzione_corrente].update(
                         {self.left.getname(): dim_value})
                 else:
-                    dim_value = ["u64", self.right.to_c(env), "VAR", "UNDECLARED"]
+                    #dim_value = ["u64", self.right.to_c(env), "VAR", "UNDECLARED"]
+                    dim_value = ["u64", self.right.prima_passata(env), "VAR", "UNDECLARED"]
                     Appoggio.variabili_locali[Appoggio.funzione_corrente].update({self.left.getname(): dim_value})
                     warnings.warn("Variable '" + self.left.getname() + "' in '" + Appoggio.funzione_corrente +
                                 "' not declared. Dimesion u64 set by default.")
