@@ -8,6 +8,7 @@ __author__ = "Andrea Bernini"
 __date__ = "2021 Aprile 26"
 
 
+from os import path
 import sys
 import re
 from eCLAT_Code.Code.lexer import Lexer
@@ -20,13 +21,14 @@ class Environment(object):
 
 def run_file(args):
     fname = args
+    package_name = fname.split("/")[-1].split(".")[0]
     with open(fname) as f:
         text_input = f.read()
     lexer = Lexer().get_lexer()
     tokens = detect_indent(lexer, text_input)
     #for i in tokens:
     #    print(i)
-    pg = Parser()
+    pg = Parser(package_name=package_name)
     pg.parse()
     parser = pg.get_parser()
     parser.parse(tokens).exec(Environment())

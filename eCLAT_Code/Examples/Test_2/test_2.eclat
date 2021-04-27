@@ -1,11 +1,11 @@
 from hike import drop, allow
 from net import Packet
+from utility import get_Id, exec_by_id
 
 __eth_proto_type_abs_off = 12
 __ipv4_total_len_abs_off = 16
 __ipv6_hop_lim_abs_off = 21
 
-nameSpace("test_2")
 
 def mychain1():
     hop_lim: u8
@@ -34,10 +34,11 @@ def mychain1():
 
 
 def mychain5(allow: u8, eth_type: u16):
-    drop: u64 = "drop"
     prog_id: u32
     if allow == 1:
-        prog_id = getId("allow")
+        #execute("allow", eth_type)
+        prog_id = get_Id("allow")
     else:
-        prog_id = getId(drop)
-    prog_id(eth_type)
+        #execute("drop", eth_type)
+        prog_id = get_Id("drop")
+    exec_by_id(prog_id, eth_type)

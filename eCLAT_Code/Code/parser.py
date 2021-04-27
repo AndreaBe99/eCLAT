@@ -4,7 +4,8 @@ from eCLAT_Code.Code.lexer import token_list
 
 
 class Parser():
-    def __init__(self):
+    def __init__(self, package_name):
+        self.package_name = package_name
         self.pg = ParserGenerator(token_list,
         precedence = [
             ('left', [':']),
@@ -29,14 +30,14 @@ class Parser():
 
         @self.pg.production('program : statement_full')
         def program_statement(p):
-            return Program(p[0])
+            return Program(p[0], self.package_name)
 
         @self.pg.production('program : statement_full program')
         def program_statement_program(p):
             if type(p[1]) is Program:
                 program = p[1]
             else:
-                program = Program(p[1])
+                program = Program(p[1], self.package_name)
             program.add_statement(p[0])
             return p[1]
 
@@ -77,10 +78,7 @@ class Parser():
             return Import(Array(p[1]))
         
         ##################### PROVA ########################
-        @self.pg.production('arglist : IDENTIFIER : U8')
-        @self.pg.production('arglist : IDENTIFIER : U16')
-        @self.pg.production('arglist : IDENTIFIER : U32')
-        @self.pg.production('arglist : IDENTIFIER : U64')
+        @self.pg.production('arglist : IDENTIFIER : type')
         def arglist_single(p):
             return InnerArray([p[2].getstr() + " " + p[0].getstr()])
         ####################################################
@@ -91,10 +89,7 @@ class Parser():
             #return InnerArray([Variable(p[0].getstr())])
 
         ##################### PROVA ########################
-        @self.pg.production('arglist : IDENTIFIER : U8  , arglist')
-        @self.pg.production('arglist : IDENTIFIER : U16 , arglist')
-        @self.pg.production('arglist : IDENTIFIER : U32 , arglist')
-        @self.pg.production('arglist : IDENTIFIER : U64 , arglist')
+        @self.pg.production('arglist : IDENTIFIER : type  , arglist')
         def arglist(p):
             # list should already be an InnerArray
             p[4].push(p[2].getstr() + " " + p[0].getstr())
@@ -123,6 +118,10 @@ class Parser():
         @self.pg.production('type : U16')
         @self.pg.production('type : U32')
         @self.pg.production('type : U64')
+        @self.pg.production('type : S8')
+        @self.pg.production('type : S16')
+        @self.pg.production('type : S32')
+        @self.pg.production('type : S64')
         def statement_type(p):
             return p[0]
 

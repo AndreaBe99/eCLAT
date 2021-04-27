@@ -11,11 +11,14 @@ import importlib
 import warnings
 from eCLAT_Code.Code.path import Path
 
+
+
 # --------------------------------------- #
 #           CLASSE DI APPOGGIO            #
 #     PER SCRIVERE LE DICHIARAZIONI       #
 # --------------------------------------- #
 class Appoggio():
+    import_module = {}
     # Variabile di appoggio in cui viene memorizzato il nome 
     # della funzione corrente
     funzione_corrente = ""
@@ -53,9 +56,6 @@ class Appoggio():
     # dict delle Chain prese dal file regisrty
     chain_registry = {}  
 
-    # Variabile per memorizzare il name space              
-    name_space = ""
-
     # --------------------------------------- #
     # Queste ultime due variabili mi servono  #
     # per eliminare le parentesi di troppo.   #
@@ -90,9 +90,10 @@ def find_Program(statement):
 #                   PROGRAM                     #
 #################################################
 class Program(BaseBox):
-    def __init__(self, statement):
+    def __init__(self, statement, package_name):
         self.statements = []
         self.statements.append(statement)
+        self.package_name = package_name
 
     def add_statement(self, statement):
         self.statements.insert(0, statement)
@@ -112,9 +113,7 @@ class Program(BaseBox):
         # in un dict "dict_registry".               #
         funzioni = ""
         count = 74 
-        name_space = Appoggio.name_space
-        if name_space == "":
-            raise Exception("NameSpace not found.")
+        name_space = self.package_name
         dict_registry = {}
         if os.path.exists(Path.registry_path):
             with open(Path.registry_path, mode='r') as csv_file:
@@ -125,7 +124,7 @@ class Program(BaseBox):
                         if row[1] == name_space:
                             if row[2] in Appoggio.variabili_locali:
                                 raise Exception("Function '" + row[2] + \
-                                    "' in NameSpace '"+ name_space+"' already exist.")
+                                    "' in NameSpace '"+ name_space+"' already exist. Change file or chain name.")
                         count = int(row[0])
         count += 1
         # ----------------------------------------- #
@@ -133,9 +132,16 @@ class Program(BaseBox):
         # chain da aggiungere al file .c            #
         for fun in Appoggio.variabili_locali:
             dict_registry[count] = [name_space, fun]
+            if len(dict_registry[count]) > 1:
+                Appoggio.chain_registry[fun] = count
             funzioni += "#define " + "HIKE_CHAIN_" + str(count) \
                         + "_ID" + " " + str(count) + "\n"
             count += 1
+        # ----------------------------------------- #
+        # CONVERTO IN C, Il risultato è in 'output' #
+        output = ""
+        for statement in self.statements:
+            output += statement.to_c(env)
         # ----------------------------------------- #
         # Riscrivo il file regisrty.csv con i       #
         # i valori aggiornati e riempio il dict     #
@@ -145,15 +151,9 @@ class Program(BaseBox):
             writer = csv.writer(csv_file, delimiter=';')
             for row in dict_registry:
                 if len(dict_registry[row]) > 1:
-                    Appoggio.chain_registry[dict_registry[row][1]] = row
                     writer.writerow([row, dict_registry[row][0], dict_registry[row][1]])
                 else:
                     writer.writerow([row])
-        # ----------------------------------------- #
-        # CONVERTO IN C, Il risultato è in 'output' #
-        output = ""
-        for statement in self.statements:
-            output += statement.to_c(env)
         # ----------------------------------------- #
         # Importo i #define di default e            #
         # incollo (in ordine):                      #
@@ -199,8 +199,9 @@ class Block(BaseBox):
         result = ''
         Appoggio.indent_level += 1
         for statement in self.statements:
-            result += '\t'*Appoggio.indent_level + statement.to_c(env)
-            if result[-1] != '{' and result[-1] != '}' and result[-1] != ';':
+            stmt = statement.to_c(env)
+            result += '\t'*Appoggio.indent_level + stmt
+            if result[-1] != '{' and result[-1] != '}' and result[-1] != ';' and len(stmt) > 0:
                 result += ';'
             result += '\n'
 
@@ -485,30 +486,32 @@ class FromImport(BaseBox):
 
     def to_c(self, env):
         result = ''
-        for statement in self.args.get_statements():
-            path = Path.import_path + self.to_co
-            if os.path.exists(path):
-                if os.path.exists(path + "/" + str(statement) + ".c"):
-                    result += '\n#define ' + Appoggio.hike_program[statement][0] + " " \
-                        + Appoggio.hike_program[statement][1] + '\n'
-                    result += "#include \"" + path + \
-                        "/" + str(statement) + ".c\"\n"
-                elif os.path.exists(path + "/" + str(statement) + ".py"):
-                    # ----------------------------------------- #
-                    # Per packet nel .c non devo scrivere nulla #
-                    pass
+        if self.to_co == "hike":
+            for statement in self.args.get_statements():
+                path = Path.import_path + "hike_program"
+                if os.path.exists(path):
+                    if os.path.exists(path + "/" + str(statement) + ".c"):
+                        result += '\n#define ' + Appoggio.hike_program[statement][0] + " " \
+                            + Appoggio.hike_program[statement][1] + '\n'
+                        result += "#include \"" + path + \
+                            "/" + str(statement) + ".c\"\n"
+                    elif os.path.exists(path + "/" + str(statement) + ".py"):
+                        # ----------------------------------------- #
+                        # Per packet nel .c non devo scrivere nulla #
+                        pass
+                    else:
+                        raise Exception(
+                            str(self.to_co + "/" + str(statement)) + ".c not found.")
                 else:
-                    raise Exception(
-                        str(self.to_co + "/" + str(statement)) + ".c not found.")
-            else:
-                raise Exception(str(self.to_co) + " not found.")
+                    raise Exception(str(self.to_co) + " not found.")
         return result
 
     def prima_passata(self, env):
         path = Path.import_path + self.to_co
-        if os.path.exists(path):
+        if os.path.exists(path + ".py"):
             for statement in self.args.get_statements():
-                if os.path.exists(path + "/" + str(statement) + ".c"):
+                # Importo le funzioni        #
+                if self.to_co == "hike":
                     # ----------------------------------------- #
                     # Per ogni programma hike importato leggo i #
                     # valori dal file eclat_program_list.csv e  #
@@ -517,19 +520,11 @@ class FromImport(BaseBox):
                         string = csv.reader(csv_file, delimiter=';')
                         for row in string:
                             if statement == row[0]:
-                                Appoggio.hike_program[row[0]] = [
-                                    row[1], row[2]]
-                elif os.path.exists(path + "/" + str(statement) + ".py"):
-                    path = path.replace("/", ".")
-                    # ----------------------------------------- #
-                    # Importo le funzioni di packet.py          #
-                    Appoggio.import_module = importlib.import_module(
-                        path + "." + str(statement), str(statement))
-                else:
-                    raise Exception(
-                        str(self.to_co + "/" + str(statement)) + ".c not found.")
+                                Appoggio.hike_program[row[0]] = [row[1], row[2]]
+                path = path.replace("/", ".")
+                Appoggio.import_module[str(statement)] = importlib.import_module(path, str(statement))
         else:
-            raise Exception(str(self.to_co) + " not found.")
+            raise Exception(str(self.to_co +  ".py not found."))
         return ""
 
 
@@ -579,26 +574,23 @@ class VariableDeclaration(BaseBox):
 
     def to_c(self, env):
         if type(self.value) is Null:
-            return "__" + str(self.dimension).lower() + " " + str(self.name.getname())
+            return ""
+            #return "__" + str(self.dimension).lower() + " " + str(self.name.getname())
         else:
-            if type(self.value) is String:
-                return "char " + \
-                    str(self.name.getname()) + "[] = " + self.value.to_c(env)
-                # return "__" + str(self.dimension).lower() + " " + \
-                #     str(self.name.getname()) + "[] = " + self.value.to_c(env)
             Appoggio.var_packet_read = self.name.getname()
-            return "__" + str(self.dimension).lower() + " " + \
-                str(self.name.getname()) + " = " + self.value.to_c(env)
+            if type(self.value) is Call and self.value.name[:11] == "Packet.read":
+                return self.value.to_c(env)
+            return str(self.name.getname()) + " = " + self.value.to_c(env)
 
     def prima_passata(self, env):
         if not Appoggio.funzione_corrente in Appoggio.variabili_locali:
             Appoggio.variabili_locali[Appoggio.funzione_corrente] = {}
         if type(self.value) is Null:
             Appoggio.variabili_locali[Appoggio.funzione_corrente][self.name.getname()] = [
-                self.dimension, "Null()", "VAR", "DECLARED"]
+                self.dimension, "Null()", "VAR"]
         else:
             Appoggio.variabili_locali[Appoggio.funzione_corrente][self.name.getname()] = [
-                self.dimension, self.value.prima_passata(env), "VAR", "DECLARED"]
+                self.dimension, self.value.prima_passata(env), "VAR"]
         return ""
 
 
@@ -631,7 +623,7 @@ class FunctionDeclaration(BaseBox):
                 array_arg_appoggio = [element, function_dict[element][0]]
                 arg += ", __" + \
                     array_arg_appoggio[1] + ", " + array_arg_appoggio[0]
-            elif function_dict[element][2] == "VAR" and function_dict[element][3] == "UNDECLARED":
+            elif function_dict[element][2] == "VAR":
                 array_var_appoggio = [element, function_dict[element][0]]
                 var += Appoggio.indent_level*"\t" + "__" + \
                     str(array_var_appoggio[1]) + " " + \
@@ -652,7 +644,8 @@ class FunctionDeclaration(BaseBox):
         # statement, se NO lo scrivo in automatico     #
         Appoggio.return_presente = False
         for statement in self.block.get_statements():
-            if statement.to_c(env).split()[0] == "return":
+            stmt = statement.to_c(env).split()
+            if len(stmt) > 0 and stmt[0] == "return":
                 Appoggio.return_presente = True
         if Appoggio.return_presente:
             result += '\t'*Appoggio.indent_level
@@ -725,8 +718,8 @@ class Assignment(BinaryOperation):
             # Se la funzione è stata dichiarata
             if Appoggio.funzione_corrente in Appoggio.variabili_locali:
                 Appoggio.var_packet_read = self.left.getname()
-                if type(self.right) is String:
-                    return self.left.getname() + '[] = ' + self.right.to_c(env)
+                if type(self.right) is Call and self.right.name[:11] == "Packet.read":
+                    return self.right.to_c(env)
                 return self.left.getname() + ' = ' + self.right.to_c(env)
         else:
             # ----------------------------------------- #
@@ -765,7 +758,7 @@ class Assignment(BinaryOperation):
                         {self.left.getname(): dim_value})
                 else:
                     #dim_value = ["u64", self.right.to_c(env), "VAR", "UNDECLARED"]
-                    dim_value = ["u64", self.right.prima_passata(env), "VAR", "UNDECLARED"]
+                    dim_value = ["u64", self.right.prima_passata(env), "VAR"]
                     Appoggio.variabili_locali[Appoggio.funzione_corrente].update({self.left.getname(): dim_value})
                     warnings.warn("Variable '" + self.left.getname() + "' in '" + Appoggio.funzione_corrente +
                                 "' not declared. Dimesion u64 set by default.")
@@ -791,18 +784,6 @@ class Call(BaseBox):
         return result
 
     def prima_passata(self, env):
-        arg_number = 0    # Numero parametri trovati
-        for statement in self.args.get_statements():
-            arg_number += 1
-        if self.name == "nameSpace" and arg_number == 1:
-            if type(self.args.get_statements()[0]) is String:
-                Appoggio.name_space = self.args.get_statements()[0].exec(env)
-            else:
-                Appoggio.name_space = self.args.get_statements()[0].getname()
-            return ""
-        elif self.name == "getId" and not arg_number == 1:
-            raise Exception("The expected number of parameter in 'name_space' is: 1" +
-                            ", found: " + str(arg_number))
         # -------------------------------------------#
         # Il controllo dell'errore è fatto in .to_c  #
         # questo perchè non ho ancora a disposizione #
@@ -848,18 +829,24 @@ class Call(BaseBox):
         # - una funzione di PACKET                   #
         # -------------------------------------------#
         string = ""
-        if self.name == "nameSpace" and arg_number == 1:
-            return ""
-        if self.name == "getId" and arg_number == 1:
+        #if self.name == "exec_by_name":
+        if self.name == "exec_by_id":
+            try:
+                metodo = getattr(Appoggio.import_module[str(self.name)], str(self.name))
+                return metodo(arg_number, str_arg)
+            except Exception as e:
+                raise Exception(e)
+        if self.name == "get_Id" and arg_number == 1:
             if type(self.args.get_statements()[0]) is String:
                 string = self.args.get_statements()[0].exec(env)
             else:
                 string = self.args.get_statements()[0].getname()
-            if string in Appoggio.hike_program:
-                return Appoggio.hike_program[string][0]
-            else:
-                raise Exception("Hike Program '" + string + "' not found.")
-        elif self.name == "getId" and not arg_number == 1:
+            try:
+                metodo = getattr(Appoggio.import_module[str(self.name)], str(self.name))
+                return metodo(string, Appoggio.hike_program)
+            except Exception as e:
+                raise Exception(e)
+        elif self.name == "get_Id" and not arg_number == 1:
             raise Exception("The expected number of parameter in 'getId' is: 1" +
                             ", found: " + str(arg_number))
         # ----------------------------------------- #
@@ -870,18 +857,17 @@ class Call(BaseBox):
         # ----------------------------------------- #
         if self.name[:6] == "Packet":
             try:
-                a = getattr(Appoggio.import_module, str(self.name)[7:])
+                classe = getattr(Appoggio.import_module[str(self.name)[:6]], str(self.name)[:6])
+                metodo = getattr(classe, self.name[7:])
                 if self.name[7:11] == "read":
                     if Appoggio.var_packet_read != "":
                         str_arg = "&"+Appoggio.var_packet_read + str_arg
                     else: 
                         # Non sto assegnando il valore di ritorno
                         str_arg = str_arg[1:]
-                    return a(str_arg)
-                elif self.name[7:12] == "write":
-                    return a(str_arg)
+                return metodo(str_arg)
             except Exception as e:
-                raise Exception("Packet Class unknow.", e)
+                raise Exception(e)
 
         hike_elem_call_ = 'hike_elem_call_'
         # ------------------------------------------- #
