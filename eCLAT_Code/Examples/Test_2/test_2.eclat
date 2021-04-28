@@ -1,6 +1,8 @@
-from hike import drop, allow
+#from hike import drop
+import hike.allow, hike.drop
 from net import Packet
-from utility import get_Id, exec_by_id
+from utility import get_Id
+import utility.exec_by_id
 
 __eth_proto_type_abs_off = 12
 __ipv4_total_len_abs_off = 16

@@ -1,17 +1,10 @@
-import ast
 from os import read
 from re import A, S
-import re
 from rply.token import BaseBox
 from integer import Integer
-import csv
-import os.path
 from random import randint
-import importlib
-import warnings
 from eCLAT_Code.Code.path import Path
-
-
+import ast, importlib, os.path, csv, re, warnings
 
 # --------------------------------------- #
 #           CLASSE DI APPOGGIO            #
@@ -542,10 +535,55 @@ class Import(BaseBox):
     def to_c(self, env):
         result = ''
         for statement in self.args.get_statements():
-            result += '#define ' + find_Program(statement) + '\n'
+            path_array = str(statement).split(".")
+            if path_array[0] == "hike":
+                    path = Path.import_path + "hike_program"
+                    if os.path.exists(path):
+                        module = "/".join(path_array[1:])
+                        if os.path.exists(path + "/" + module + ".c"):
+                            result += '\n#define ' + Appoggio.hike_program[module][0] + " " \
+                                + Appoggio.hike_program[module][1] + '\n'
+                            result += "#include \"" + path + "/" + module + ".c\"\n"
+                        elif os.path.exists(path + "/" + module + ".py"):
+                            # ----------------------------------------- #
+                            # Per packet nel .c non devo scrivere nulla #
+                            pass
+                        else:
+                            raise Exception(path+ "/" + module + ".c not found.")
+                    else:
+                        raise Exception(path + " not found.")
         return result
 
     def prima_passata(self, env):
+        path = Path.import_path
+        for statement in self.args.get_statements():
+            path_array = str(statement).split(".")
+            num = 0
+            if path_array[0] == "hike":
+                # ----------------------------------------- #
+                # Per ogni programma hike importato leggo i #
+                # valori dal file eclat_program_list.csv e  #
+                # li salvo IN UN DICT PER COMODITA'.        #
+                with open(Path.hike_program_path, mode='r') as csv_file:
+                    string = csv.reader(csv_file, delimiter=';')
+                    for row in string:
+                        if path_array[1] == row[0]:
+                            Appoggio.hike_program[row[0]] = [row[1], row[2]]
+            else:
+                for module in path_array:
+                    path += module + "/"
+                    num += 1
+                    # Se esiste una cartella o un file python
+                    if os.path.exists(path):
+                        continue
+                    elif os.path.exists(path[:-1] + ".py"):
+                        break
+                    else:
+                        raise Exception(path+ " not found.")
+                path_array = path_array[num:]
+                module = ".".join(path_array)
+                path = path.replace("/", ".")
+                Appoggio.import_module[module] = importlib.import_module(path[:-1], module)
         return ""
 
 

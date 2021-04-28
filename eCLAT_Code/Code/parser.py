@@ -69,41 +69,56 @@ class Parser():
         def statement_expr(p):
             return p[0]
         
-        @self.pg.production('statement : FROM IDENTIFIER IMPORT arglist')
-        def statement_func(p):
-            return FromImport(p[1].getstr(), Array(p[3]))
+
+        @self.pg.production('statement : FROM module_path IMPORT module_list')
+        def statement_import_from(p):
+            module_path = ".".join(p[1].get_statements())
+            return FromImport(module_path, Array(p[3]))
         
-        @self.pg.production('statement : IMPORT arglist')
-        def statement_func(p):
+        @self.pg.production('statement : IMPORT module_list')
+        def statement_import(p):
             return Import(Array(p[1]))
         
-        ##################### PROVA ########################
-        @self.pg.production('arglist : IDENTIFIER : type')
-        def arglist_single(p):
-            return InnerArray([p[2].getstr() + " " + p[0].getstr()])
-        ####################################################
+        @self.pg.production('module_list : module_path')
+        def import_from_module(p):
+            module_path = ".".join(p[0].get_statements())
+            return InnerArray([module_path])
+
+        @self.pg.production('module_list : module_path , module_list')
+        def import_from_module_list(p):
+            module_path = ".".join(p[0].get_statements())
+            p[2].push(module_path)
+            return p[2]
+        
+        @self.pg.production('module_path : IDENTIFIER')
+        def module_path(p):
+            return InnerArray([p[0].getstr()])
+        
+        @self.pg.production('module_path : IDENTIFIER . module_path')
+        def module_path(p):
+            p[2].push(p[0].getstr())
+            return p[2]
+
+
 
         @self.pg.production('arglist : IDENTIFIER')
         def arglist_single(p):
-            return InnerArray([ p[0].getstr()])
-            #return InnerArray([Variable(p[0].getstr())])
-
-        ##################### PROVA ########################
-        @self.pg.production('arglist : IDENTIFIER : type  , arglist')
-        def arglist(p):
-            # list should already be an InnerArray
-            p[4].push(p[2].getstr() + " " + p[0].getstr())
-            return p[4]
-        #####################################################
+            return InnerArray([p[0]])
 
         @self.pg.production('arglist : IDENTIFIER , arglist')
         def arglist(p):
-            # list should already be an InnerArray
             p[2].push(p[0].getstr())
-            #p[2].push(Variable(p[0].getstr()))
             return p[2]
         
+        @self.pg.production('arglist : IDENTIFIER : type')
+        def arglist_single(p):
+            return InnerArray([p[2].getstr() + " " + p[0].getstr()])
 
+        @self.pg.production('arglist : IDENTIFIER : type  , arglist')
+        def arglist(p):
+            p[4].push(p[2].getstr() + " " + p[0].getstr())
+            return p[4]
+        
 
         @self.pg.production('statement : IDENTIFIER : type = expression')
         def statement_declaration_expression(p):

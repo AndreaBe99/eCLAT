@@ -1,11 +1,11 @@
 #define HIKE_CHAIN_75_ID 75
 #define HIKE_CHAIN_76_ID 76
 
-#define HIKE_EBPF_PROG_DROP_ANY 12
-#include "eCLAT_Code/Code/Lib/Import/hike_program/drop.c"
-
 #define HIKE_EBPF_PROG_ALLOW_ANY 11
 #include "eCLAT_Code/Code/Lib/Import/hike_program/allow.c"
+
+#define HIKE_EBPF_PROG_DROP_ANY 12
+#include "eCLAT_Code/Code/Lib/Import/hike_program/drop.c"
 
 #define __ETH_PROTO_TYPE_ABS_OFF 12
 
