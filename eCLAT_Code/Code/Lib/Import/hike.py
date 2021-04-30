@@ -42,3 +42,18 @@ def slow():
     if os.path.exists(path):
         return path
     #return "eCLAT_Code/Code/Lib/hike/slow.c"
+
+def get_external_ID():
+    path = Path.import_path + "hike_program/get_external_ID.c"
+    if os.path.exists(path):
+        return path
+
+def get_time_8_bit():
+    path = Path.import_path + "hike_program/get_time_8_bit.c"
+    if os.path.exists(path):
+        return path
+
+def pkt_mem_copy():
+    path = Path.import_path + "hike_program/pkt_mem_copy.c"
+    if os.path.exists(path):
+        return path

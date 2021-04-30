@@ -1,10 +1,10 @@
-from os import read
-from re import A, S
 from rply.token import BaseBox
 from integer import Integer
-from random import randint
 from eCLAT_Code.Code.path import Path
-import ast, importlib, os.path, csv, re, warnings
+import importlib
+import os.path
+import csv
+import warnings
 
 # --------------------------------------- #
 #           CLASSE DI APPOGGIO            #

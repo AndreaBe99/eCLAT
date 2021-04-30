@@ -21,6 +21,7 @@ class Environment(object):
 
 def run_file(args):
     fname = args
+    # prende il nome del package
     package_name = fname.split("/")[-1].split(".")[0]
     with open(fname) as f:
         text_input = f.read()
@@ -36,6 +37,7 @@ def run_file(args):
 
 # ------------------------------------------- #
 # Rimuove i commenti dalla stringa passata    #
+# come argomento                              #
 def remove_comment(line):
     # RegEx per i commenti
     comments = r'(#.*)(?:\n|\Z)'

@@ -7,6 +7,9 @@
 #define HIKE_EBPF_PROG_DROP_ANY 12
 #include "eCLAT_Code/Code/Lib/Import/hike_program/drop.c"
 
+#define HIKE_EBPF_PROG_GET_EXTERNAL_ID 16
+#include "eCLAT_Code/Code/Lib/Import/hike_program/get_external_ID.c"
+
 #define __ETH_PROTO_TYPE_ABS_OFF 12
 
 #define __IPV4_TOTAL_LEN_ABS_OFF 16
@@ -22,6 +25,7 @@ HIKE_CHAIN_1(HIKE_CHAIN_75_ID) {
 	allow = 1;
 	
 	hike_packet_read_u16(&eth_type, __ETH_PROTO_TYPE_ABS_OFF);
+	eth_type = hike_elem_call_1(HIKE_EBPF_PROG_GET_EXTERNAL_ID);
 	if ( eth_type == 0x800 ) {
 		hike_packet_read_u16(&ip4_len, __IPV4_TOTAL_LEN_ABS_OFF);
 		if ( ip4_len >= 128 ) {

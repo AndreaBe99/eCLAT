@@ -1,5 +1,5 @@
 #from hike import drop
-import hike.allow, hike.drop
+from hike import allow, drop
 from net import Packet
 from utility import get_Id
 import utility.exec_by_id
@@ -14,7 +14,6 @@ def mychain1():
     allow: u8 = 1
     ip4_len: u16
     eth_type: u16 = Packet.readU16(__eth_proto_type_abs_off)
-
     if (eth_type == 0x800):
         ip4_len = Packet.readU16(__ipv4_total_len_abs_off)
         if ip4_len >= 128:

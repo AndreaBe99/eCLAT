@@ -24,6 +24,9 @@ class Parser():
         ])
 
     def parse(self):
+        #################################################
+        #                   PROGRAM                     #
+        #################################################
         @self.pg.production("main : program")
         def main_program(p):
             return p[0]
@@ -41,6 +44,9 @@ class Parser():
             program.add_statement(p[0])
             return p[1]
 
+        #################################################
+        #                     BLOCK                     #
+        #################################################
         @self.pg.production('block : INDENT blocks DEDENT')
         def block_expr(p):
             return p[1]
@@ -58,7 +64,6 @@ class Parser():
             b.add_statement(p[0])
             return b
 
-
         @self.pg.production('statement_full : statement NEWLINE')
         @self.pg.production('statement_full : statement $end')
         @self.pg.production('statement_full : statement')
@@ -70,6 +75,9 @@ class Parser():
             return p[0]
         
 
+        #################################################
+        #                    IMPORT                     #
+        #################################################
         @self.pg.production('statement : FROM module_path IMPORT module_list')
         def statement_import_from(p):
             module_path = ".".join(p[1].get_statements())
@@ -100,30 +108,12 @@ class Parser():
             return p[2]
 
 
-
-        @self.pg.production('arglist : IDENTIFIER')
-        def arglist_single(p):
-            return InnerArray([p[0]])
-
-        @self.pg.production('arglist : IDENTIFIER , arglist')
-        def arglist(p):
-            p[2].push(p[0].getstr())
-            return p[2]
-        
-        @self.pg.production('arglist : IDENTIFIER : type')
-        def arglist_single(p):
-            return InnerArray([p[2].getstr() + " " + p[0].getstr()])
-
-        @self.pg.production('arglist : IDENTIFIER : type  , arglist')
-        def arglist(p):
-            p[4].push(p[2].getstr() + " " + p[0].getstr())
-            return p[4]
-        
-
+        #################################################
+        #            VARIABLE DECLARATION               #
+        #################################################
         @self.pg.production('statement : IDENTIFIER : type = expression')
         def statement_declaration_expression(p):
             return VariableDeclaration(Variable(p[0].getstr()), p[2].getstr(), p[4])
-
 
         @self.pg.production('statement : IDENTIFIER : type')
         def statement_declaration(p):
@@ -139,21 +129,49 @@ class Parser():
         @self.pg.production('type : S64')
         def statement_type(p):
             return p[0]
+        
 
+        #################################################
+        #                 ASSIGNMENT                    #
+        #################################################
         @self.pg.production('statement : IDENTIFIER = expression')
         def statement_assignment(p):
             return Assignment(p[1], Variable(p[0].getstr()), p[2])
         
-        
+
+        #################################################
+        #            FUNCTION DECLARATION               #
+        #################################################
         @self.pg.production('statement : DEF IDENTIFIER ( arglist ) : NEWLINE block ')
         def statement_func(p):
             return FunctionDeclaration(p[1].getstr(), Array(p[3]), p[7])
+        
+        @self.pg.production('arglist : IDENTIFIER')
+        def arglist_single(p):
+            return InnerArray([p[0]])
+
+        @self.pg.production('arglist : IDENTIFIER , arglist')
+        def arglist(p):
+            p[2].push(p[0].getstr())
+            return p[2]
+
+        @self.pg.production('arglist : IDENTIFIER : type')
+        def arglist_single(p):
+            return InnerArray([p[2].getstr() + " " + p[0].getstr()])
+
+        @self.pg.production('arglist : IDENTIFIER : type  , arglist')
+        def arglist(p):
+            p[4].push(p[2].getstr() + " " + p[0].getstr())
+            return p[4]
 
         @self.pg.production('statement : DEF IDENTIFIER ( ) : NEWLINE block ')
         def statement_func_noargs(p):
             return FunctionDeclaration(p[1].getstr(), Null(), p[6])
         
-        
+
+        #################################################
+        #                      IF                       #
+        #################################################
         @self.pg.production('expression : IF expression : NEWLINE block else_stmt')
         @self.pg.production('expression : IF expression : NEWLINE block')
         def expression_if_else_single_line(p):
@@ -170,6 +188,10 @@ class Parser():
             else:
                 return If(condition=p[1], body=p[3])
 
+
+        #################################################
+        #                    ELSE                       #
+        #################################################
         @self.pg.production('else_stmt : ELSE : statement_full')
         @self.pg.production('else_stmt : ELSE : NEWLINE block')
         def expression_else_stmt(p):
@@ -178,12 +200,18 @@ class Parser():
             else:
                 return Else(else_body=p[3])
 
-        
+
+        #################################################
+        #                    WHILE                      #
+        #################################################
         @self.pg.production('expression : WHILE expression : NEWLINE block ')
         def expression_while(p):
             return While(condition=p[1], body=p[4])
         
-        
+
+        #################################################
+        #                    RETURN                     #
+        #################################################
         @self.pg.production('expression : RETURN')
         def statement_call_args(p):
             return Return(Null())
@@ -197,14 +225,23 @@ class Parser():
         def expression_const(p):
             return p[0]
         
+        #################################################
+        #                     FLOAT                     #
+        #################################################
         @self.pg.production('const : FLOAT')
         def expression_float(p):
             return Float(float(p[0].getstr()))
 
+        #################################################
+        #                    BOOLEAN                    #
+        #################################################
         @self.pg.production('const : BOOLEAN')
         def expression_boolean(p):
             return Boolean(True if p[0].getstr() == 'true' else False)
 
+        #################################################
+        #                   INTEGER                     #
+        #################################################
         @self.pg.production('const : INTEGER')
         def expression_integer(p):
             return Integer(int(p[0].getstr()), 10)
@@ -213,15 +250,27 @@ class Parser():
         def expression_integer(p):
             return Integer(int(p[0].getstr(), 16), 16)
 
+        #################################################
+        #                    STRING                     #
+        #################################################
         @self.pg.production('const : STRING')
         def expression_string(p):
             return String(p[0].getstr().strip('"\''))
         
+        #################################################
+        #                  VARIABLE                     #
+        #################################################
         @self.pg.production('expression : IDENTIFIER')
         def expression_call_noargs(p):
             return Variable(p[0].getstr())
 
 
+        #################################################
+        #                    CALL                       #
+        #################################################
+        # FIX DA FARE: CHIAMATA A CASCATA DEI METODI    #
+        # per ora ce ne sono solo 2.                    #
+        # Cioè (IDENTIFIER . IDENTIFIER)                #
         @self.pg.production('expression : IDENTIFIER ( )')
         def expression_call_noargs(p):
             return Call(p[0].getstr(), InnerArray())
@@ -238,31 +287,42 @@ class Parser():
         def expression_call_fun_noargs(p):
             return Call(p[0].getstr() + p[1].getstr() + p[2].getstr(), p[4])
         
-        @self.pg.production('expression : [ expression ]')
-        def expression_array_single(p):
-            return Array(InnerArray([p[1]]))
+        # @self.pg.production('expression : [ expression ]')
+        # def expression_array_single(p):
+        #     return Array(InnerArray([p[1]]))
 
-        @self.pg.production('expression : [ expressionlist ]')
-        def expression_array(p):
-            return Array(p[1])
+        # @self.pg.production('expression : [ expressionlist ]')
+        # def expression_array(p):
+        #     return Array(p[1])
 
+
+        #################################################
+        #                 EXPRESSION                    #
+        #################################################
         @self.pg.production('expression : ( expression )')
         def expression_parens(p):
             # in this case we need parens only for precedence
             # so we just need to return the inner expression
             return Expression(p[1])
 
-
+        #################################################
+        #                     NOT                       #
+        #################################################
         @self.pg.production('expression : NOT expression ')
         def expression_not(p):
             return Not(p[1])
 
-        # BITWISE OPERATION
+        #################################################
+        #               BIT-WISE NOT                    #
+        #################################################
         @self.pg.production('expression : ~ expression ')
         def expression_bitwise_not(p):
             return BitWise_Not(p[1])
         
 
+        #################################################
+        #               BINARY OPERATION                #
+        #################################################
         @self.pg.production('expression : expression PLUS expression')  # +
         @self.pg.production('expression : expression MINUS expression') # -
         @self.pg.production('expression : expression MUL expression')   # *
