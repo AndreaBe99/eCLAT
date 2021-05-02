@@ -53,7 +53,17 @@ def get_time_8_bit():
     if os.path.exists(path):
         return path
 
-def pkt_mem_copy():
-    path = Path.import_path + "hike_program/pkt_mem_copy.c"
+
+def pkt_mem_move():
+    path = Path.import_path + "hike_program/pkt_mem_move.c"
     if os.path.exists(path):
         return path
+
+
+def interface_load():
+    path = Path.import_path + "hike_program/pkt_mem_move.c"
+    if os.path.exists(path):
+        return path
+
+
+

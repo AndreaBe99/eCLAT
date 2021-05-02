@@ -1,0 +1,30 @@
+from net import Packet
+from hike import pkt_mem_move, get_time_8_bit, get_external_ID, interface_load
+
+def chain_main():
+    eth_type: u16 = Packet.readU16(12)
+    if (eth_type == 0x86dd):
+        
+        start_byte : u8 = Packet.readU8(673)    # 680 finale
+        mid_byte : u8 = Packet.readU8(681)       # 688 
+        end_byte : u8 = Packet.readU8(689)       # 696
+
+        # Controllo per vedere se è vuoto (come ?)
+        if start_byte == 0x00:
+            if mid_byte == 0x00:
+                if end_byte == 0x00:
+                    pkt_mem_move(672, 361, 24)
+
+                    time : u8 = get_time_8_bit()
+                    ex_id : u16 = get_external_ID()
+                    load : u8 = interface_load()
+                    #cmd_node : u32 = time + ex_id + load # strcat() per il concatenamento
+
+                    Packet.writeU8(361, time)   # 368
+                    Packet.writeU16(369, ex_id) # 380
+                    Packet.writeU8(381, load)   # 384
+    else:
+        return -1
+
+
+

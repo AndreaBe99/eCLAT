@@ -1,64 +1,47 @@
 #define HIKE_CHAIN_75_ID 75
-#define HIKE_CHAIN_76_ID 76
 
-#define HIKE_EBPF_PROG_ALLOW_ANY 11
-#include "eCLAT_Code/Code/Lib/Import/hike_program/allow.c"
+#define HIKE_EBPF_PROG_PKT_MEM_MOVE 18
+#include "eCLAT_Code/Code/Lib/Import/hike_program/pkt_mem_move.c"
 
-#define HIKE_EBPF_PROG_DROP_ANY 12
-#include "eCLAT_Code/Code/Lib/Import/hike_program/drop.c"
+#define HIKE_EBPF_PROG_GET_TIME_8_BIT 17
+#include "eCLAT_Code/Code/Lib/Import/hike_program/get_time_8_bit.c"
 
 #define HIKE_EBPF_PROG_GET_EXTERNAL_ID 16
 #include "eCLAT_Code/Code/Lib/Import/hike_program/get_external_ID.c"
 
-#define __ETH_PROTO_TYPE_ABS_OFF 12
-
-#define __IPV4_TOTAL_LEN_ABS_OFF 16
-
-#define __IPV6_HOP_LIM_ABS_OFF 21
+#define HIKE_EBPF_PROG_PKT_INTERFACE_LOAD 19
+#include "eCLAT_Code/Code/Lib/Import/hike_program/interface_load.c"
 
 HIKE_CHAIN_1(HIKE_CHAIN_75_ID) {
-	__u8 hop_lim;
-	__u8 allow;
-	__u16 ip4_len;
 	__u16 eth_type;
-	
-	allow = 1;
-	
-	hike_packet_read_u16(&eth_type, __ETH_PROTO_TYPE_ABS_OFF);
-	eth_type = hike_elem_call_1(HIKE_EBPF_PROG_GET_EXTERNAL_ID);
-	if ( eth_type == 0x800 ) {
-		hike_packet_read_u16(&ip4_len, __IPV4_TOTAL_LEN_ABS_OFF);
-		if ( ip4_len >= 128 ) {
-			hike_elem_call_3(HIKE_CHAIN_76_ID, allow, eth_type);
-			return 0;
-		}
-		allow = 0;
-		hike_elem_call_3(HIKE_CHAIN_76_ID, allow, eth_type);
-		return 0;
-	}
+	__u8 start_byte;
+	__u8 mid_byte;
+	__u8 end_byte;
+	__u8 time;
+	__u16 ex_id;
+	__u8 load;
+	hike_packet_read_u16(&eth_type, 12);
 	if ( eth_type == 0x86dd ) {
-		hike_packet_read_u8(&hop_lim, __IPV6_HOP_LIM_ABS_OFF);
-		if ( hop_lim != 64 ) {
-			hike_elem_call_3(HIKE_CHAIN_76_ID, allow, eth_type);
-			return 0;
+		hike_packet_read_u8(&start_byte, 673);
+		hike_packet_read_u8(&mid_byte, 681);
+		hike_packet_read_u8(&end_byte, 689);
+		if ( start_byte == 0x0 ) {
+			if ( mid_byte == 0x0 ) {
+				if ( end_byte == 0x0 ) {
+					hike_elem_call_4(HIKE_EBPF_PROG_PKT_MEM_MOVE, 672, 361, 24);
+					time = hike_elem_call_1(HIKE_EBPF_PROG_GET_TIME_8_BIT);
+					ex_id = hike_elem_call_1(HIKE_EBPF_PROG_GET_EXTERNAL_ID);
+					load = hike_elem_call_1(HIKE_EBPF_PROG_PKT_INTERFACE_LOAD);
+					hike_packet_write_u8(361, time);
+					hike_packet_write_u16(369, ex_id);
+					hike_packet_write_u8(381, load);
+				}
+			}
 		}
-		hike_packet_write_u8(__IPV6_HOP_LIM_ABS_OFF, 17);
-	}
-	hike_elem_call_3(HIKE_CHAIN_76_ID, allow, eth_type);
-	return 0;
-	
-}
-
-HIKE_CHAIN_3(HIKE_CHAIN_76_ID, __u8, allow, __u16, eth_type) {
-	__u32 prog_id;
-	
-	if ( allow == 1 ) {
-		prog_id = HIKE_EBPF_PROG_ALLOW_ANY;
 	}
 	else {
-		prog_id = HIKE_EBPF_PROG_DROP_ANY;
+		return -1;
 	}
-	hike_elem_call_2(prog_id, eth_type);
 
 	return 0;
 }
