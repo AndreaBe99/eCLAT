@@ -1,28 +1,45 @@
 from net import Packet
 from hike import pkt_mem_move, get_time_8_bit, get_external_ID, interface_load
 
+__ipv6_start_byte_off = 673     # INIZIALE: 673  FINALE: 680
+__ipv6_mid_byte_off = 681       # INIZIALE: 681  FINALE: 688
+__ipv6_end_byte_off = 689       # INIZIALE: 689  FINALE: 696
+
+__ipv6_cmd_tts_off = 361        # INIZIALE: 361  FINALE: 368    Truncated PTP Rx Timestamp
+__ipv6_cmd_oif_off = 369        # INIZIALE: 369  FINALE: 380    Outgoing Interface ID
+__ipv6_cmd_oil_off = 381        # INIZIALE: 381  FINALE: 384    Outgoing Interface Load
+
 def chain_main():
     eth_type: u16 = Packet.readU16(12)
     if (eth_type == 0x86dd):
-        
-        start_byte : u8 = Packet.readU8(673)    # 680 finale
-        mid_byte : u8 = Packet.readU8(681)       # 688 
-        end_byte : u8 = Packet.readU8(689)       # 696
+        #########################################################
+        # Check if received packet has an HBH with option = PT  #
+        # PT option = 0x32 (0011 0010)                          #
+        #########################################################
+        # If packet has PT option:
+        # Compute the CMD information for this node
 
-        # Controllo per vedere se è vuoto (come ?)
+        start_byte: u8 = Packet.readU8(__ipv6_start_byte_off)
+        mid_byte: u8 = Packet.readU8(__ipv6_mid_byte_off)       
+        end_byte : u8 = Packet.readU8(__ipv6_end_byte_off)      
+
+        # if is empty
+        # if(HbH-PT.Stack[39:41] == 0)
         if start_byte == 0x00:
             if mid_byte == 0x00:
                 if end_byte == 0x00:
+                    # HbH-PT.Stack[3:41] = HbH-PT.Stack[0:38] 
+                    # Shift Hbh-PT CMD Stack 3B to the right
                     pkt_mem_move(672, 361, 24)
 
                     time : u8 = get_time_8_bit()
                     ex_id : u16 = get_external_ID()
-                    load : u8 = interface_load()
-                    #cmd_node : u32 = time + ex_id + load # strcat() per il concatenamento
+                    in_load : u8 = interface_load()
 
-                    Packet.writeU8(361, time)   # 368
-                    Packet.writeU16(369, ex_id) # 380
-                    Packet.writeU8(381, load)   # 384
+                    # Push the CMD at the beginning of the Stack (i.e., HBH-PT.Stack[0:2])
+                    Packet.writeU8(__ipv6_cmd_tts_off, time)
+                    Packet.writeU16(__ipv6_cmd_oif_off, ex_id)
+                    Packet.writeU8(__ipv6_cmd_oil_off, in_load)
     else:
         return -1
 
