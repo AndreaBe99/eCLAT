@@ -12,11 +12,11 @@
 #define HIKE_EBPF_PROG_PKT_INTERFACE_LOAD 19
 #include "eCLAT_Code/Code/Lib/Import/hike_program/interface_load.c"
 
-#define __IPV6_START_BYTE_OFF 673
+#define __IPV6_START_39_BYTE_OFF 673
 
-#define __IPV6_MID_BYTE_OFF 681
+#define __IPV6_MID_40_BYTE_OFF 681
 
-#define __IPV6_END_BYTE_OFF 689
+#define __IPV6_END_41_BYTE_OFF 689
 
 #define __IPV6_CMD_TTS_OFF 361
 
@@ -34,9 +34,9 @@ HIKE_CHAIN_1(HIKE_CHAIN_75_ID) {
 	__u8 in_load;
 	hike_packet_read_u16(&eth_type, 12);
 	if ( eth_type == 0x86dd ) {
-		hike_packet_read_u8(&start_byte, __IPV6_START_BYTE_OFF);
-		hike_packet_read_u8(&mid_byte, __IPV6_MID_BYTE_OFF);
-		hike_packet_read_u8(&end_byte, __IPV6_END_BYTE_OFF);
+		hike_packet_read_u8(&start_byte, __IPV6_START_39_BYTE_OFF);
+		hike_packet_read_u8(&mid_byte, __IPV6_MID_40_BYTE_OFF);
+		hike_packet_read_u8(&end_byte, __IPV6_END_41_BYTE_OFF);
 		if ( start_byte == 0x0 ) {
 			if ( mid_byte == 0x0 ) {
 				if ( end_byte == 0x0 ) {

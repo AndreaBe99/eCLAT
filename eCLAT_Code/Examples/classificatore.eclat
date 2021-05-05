@@ -23,7 +23,7 @@ from net import Packet
 from hike import allow, mon, slow, fast
 
 
-__offset_ttl = 64       # Quale numero?
+__offset_ttl = 64     
 
 
 def chain1(tos: s16):
