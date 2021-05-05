@@ -65,11 +65,11 @@ def chain_main():
     # IPv4 traffic, go ahead
     if (tos == 4):
         chain1(tos)
-    if (tos == 12):
+    elif (tos == 12):
         chain2(tos)
-    if (tos == 16):
+    elif (tos == 16):
         chain3(tos)
-    if (tos == 28):
+    elif (tos == 28):
         fast()
     else:
         allow()

@@ -1028,9 +1028,7 @@ class If(BaseBox):
         result = 'if ' + condition + ' {\n' \
             + self.body.to_c(env) + Appoggio.indent_level*'\t' + '}'
         if type(self.else_body) is not Null:
-            result += '\n' + Appoggio.indent_level*'\t' \
-                + 'else {\n' + self.else_body.to_c(env) \
-                + Appoggio.indent_level*'\t' + '}'
+            result += self.else_body.to_c(env)
         return result
 
     def prima_passata(self, env):
@@ -1048,11 +1046,53 @@ class Else(BaseBox):
         return self.else_body.exec(env)
 
     def to_c(self, env):
-        result = self.else_body.to_c(env)
+        result = '\n' + Appoggio.indent_level*'\t' + \
+            'else {\n' + self.else_body.to_c(env) + Appoggio.indent_level*'\t' + '}\n'
         return result
 
     def prima_passata(self, env):
         return self.else_body.prima_passata(env)
+
+
+#################################################
+#                    ELIF                       #
+#################################################
+class Elif(BaseBox):
+    def __init__(self, condition, body, else_body=Null()):
+        self.condition = condition
+        self.body = body
+        self.else_body = else_body
+
+    def exec(self, env):
+        condition = self.condition.exec(env)
+        if condition:
+            return self.body.exec(env)
+        else:
+            if type(self.else_body) is not Null:
+                return self.else_body.exec(env)
+        return Null()
+
+    def to_c(self, env):
+        result = '\n' + Appoggio.indent_level*'\t' + 'else {\n'
+        Appoggio.in_condition = True
+        condition = self.condition.to_c(env)
+        if condition[0] != "(" and condition[-1] != ")":
+            condition = "(" + condition + ")"
+        Appoggio.in_condition = False
+
+        Appoggio.indent_level += 1
+        result += Appoggio.indent_level*'\t' + 'if ' + condition + ' {\n' \
+            + self.body.to_c(env) + Appoggio.indent_level*'\t' + '}'
+        
+        if type(self.else_body) is not Null:
+            result += self.else_body.to_c(env)
+
+        Appoggio.indent_level -= 1
+        result += '\n' + Appoggio.indent_level*'\t' + '}'
+        return result
+
+    def prima_passata(self, env):
+        return self.body.prima_passata(env) + "," + self.else_body.prima_passata(env)
 
 
 #################################################

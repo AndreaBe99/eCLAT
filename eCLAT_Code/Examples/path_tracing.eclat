@@ -38,7 +38,7 @@ def chain_main():
                 pkt_mem_move(672, 361, 24)
 
                 time : u8 = get_time_8_bit()                            # 8  bit
-                ex_id : u16 = get_iflabel_ID(get_ingress_ifindex())    # 12 bit
+                ex_id : u16 = get_iflabel_ID(get_ingress_ifindex())     # 12 bit
                 #in_load : u8 = interface_load(get_ingress_ifindex())   # 4  bit
                 in_load : u8 = 0                                        # 4  bit
 

@@ -172,14 +172,16 @@ class Parser():
         #################################################
         #                      IF                       #
         #################################################
+        @self.pg.production('expression : IF expression : NEWLINE block elif_stmt')
         @self.pg.production('expression : IF expression : NEWLINE block else_stmt')
         @self.pg.production('expression : IF expression : NEWLINE block')
-        def expression_if_else_single_line(p):
+        def expression_if_else(p):
             if len(p) == 6:
                 return If(condition=p[1], body=p[4], else_body=p[5])
             else:
                 return If(condition=p[1], body=p[4])
 
+        @self.pg.production('expression : IF expression : statement NEWLINE elif_stmt')
         @self.pg.production('expression : IF expression : statement NEWLINE else_stmt')
         @self.pg.production('expression : IF expression : statement_full')
         def expression_if_else_single_line(p):
@@ -188,13 +190,33 @@ class Parser():
             else:
                 return If(condition=p[1], body=p[3])
 
+        #################################################
+        #                    ELIF                       #
+        #################################################
+        @self.pg.production('elif_stmt : ELIF expression : NEWLINE block elif_stmt')
+        @self.pg.production('elif_stmt : ELIF expression : NEWLINE block else_stmt')
+        @self.pg.production('elif_stmt : ELIF expression : NEWLINE block')
+        def elif_stmt(p):
+            if len(p) == 6:
+                return Elif(condition=p[1], body=p[4], else_body=p[5])
+            else:
+                return Elif(condition=p[1], body=p[4])
+
+        @self.pg.production('elif_stmt : ELIF expression : statement NEWLINE elif_stmt')
+        @self.pg.production('elif_stmt : ELIF expression : statement NEWLINE else_stmt')
+        @self.pg.production('elif_stmt : ELIF expression : statement_full')
+        def elif_stmt_single_line(p):
+            if len(p) == 6:
+                return Elif(condition=p[1], body=p[3], else_body=p[5])
+            else:
+                return Elif(condition=p[1], body=p[3])
 
         #################################################
         #                    ELSE                       #
         #################################################
         @self.pg.production('else_stmt : ELSE : statement_full')
         @self.pg.production('else_stmt : ELSE : NEWLINE block')
-        def expression_else_stmt(p):
+        def else_stmt(p):
             if len(p) == 3:
                 return Else(else_body=p[2])
             else:
@@ -207,6 +229,14 @@ class Parser():
         @self.pg.production('expression : WHILE expression : NEWLINE block ')
         def expression_while(p):
             return While(condition=p[1], body=p[4])
+        
+
+        #################################################
+        #                     FOR                       #
+        #################################################
+        # @self.pg.production('expression : FOR star_targets IN star_expressions : NEWLINE block ')
+        # def expression_for(p):
+        #     return For(star_targets=p[1], star_expressions=p[3], body=p[6])
         
 
         #################################################
