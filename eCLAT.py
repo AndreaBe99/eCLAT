@@ -113,10 +113,10 @@ def detect_indent(lexer, source):
     return lexer.lex(text)
 
 
-
 ######### PER DEBUG ##########
 #run_file("eCLAT_Code/Examples/Test_1/test_1.eclat")
 #run_file("Examples/classificatore.eclat")
+#run_file("eCLAT_Code/Examples/path_tracing.eclat")
 ##############################
 
 #"""

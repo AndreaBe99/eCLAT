@@ -422,8 +422,8 @@ class BinaryOperation():
             + self.operator + ' ' + self.right.to_c(env) + ' '
 
     def prima_passata(self, env):
-        return ' ' + self.left.prima_passata() + ' ' \
-            + self.operator + ' ' + self.right.prima_passata() + ' '
+        return ' ' + self.left.prima_passata(env) + ' ' \
+            + self.operator + ' ' + self.right.prima_passata(env) + ' '
 
 
 #################################################
@@ -1047,7 +1047,7 @@ class Else(BaseBox):
 
     def to_c(self, env):
         result = '\n' + Appoggio.indent_level*'\t' + \
-            'else {\n' + self.else_body.to_c(env) + Appoggio.indent_level*'\t' + '}\n'
+            'else {\n' + self.else_body.to_c(env) + Appoggio.indent_level*'\t' + '}'
         return result
 
     def prima_passata(self, env):

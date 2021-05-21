@@ -43,8 +43,9 @@ def slow():
         return path
     #return "eCLAT_Code/Code/Lib/hike/slow.c"
 
-def get_external_ID():
-    path = Path.import_path + "hike_program/get_external_ID.c"
+
+def get_iflabel_id():
+    path = Path.import_path + "hike_program/get_iflabel_id.c"
     if os.path.exists(path):
         return path
 
@@ -61,9 +62,14 @@ def pkt_mem_move():
 
 
 def interface_load():
-    path = Path.import_path + "hike_program/pkt_mem_move.c"
+    path = Path.import_path + "hike_program/interface_load.c"
     if os.path.exists(path):
         return path
 
+
+def get_ingress_ifindex():
+    path = Path.import_path + "hike_program/get_ingress_ifindex.c"
+    if os.path.exists(path):
+        return path
 
 
