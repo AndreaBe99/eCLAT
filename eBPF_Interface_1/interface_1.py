@@ -1,7 +1,14 @@
-# bpftool prog { load | loadall } OBJ PATH [type TYPE] [map {idx IDX |  name  NAME}  MAP] [dev NAME] [pinmaps MAP_DIR]
-def prog_load_all(load_type, prog_obj, prog_path, type=None, map_idx=None, map_name=None, map_map=None, dev_name=None, pinmaps_map_dir=None):
-    # load_type = "load" or "loadall" 
-    command = "bpftool prog " + load_type + prog_obj + " " + prog_path + " "
+# References: 
+# - https://manpages.ubuntu.com/manpages/focal/man8/bpftool-prog.8.html
+# - https://man.archlinux.org/man/bpftool.8.en
+
+# bpftool prog { load | loadall } OBJ PATH [type TYPE] 
+## [map {idx IDX |  name  NAME}  MAP] [dev NAME] [pinmaps MAP_DIR]
+def prog_load_all(load_loadall, prog_obj, prog_path, 
+                    type=None, map_idx=None, map_name=None, 
+                        map_map=None, dev_name=None, pinmaps_map_dir=None):
+    # load_loadall = "load" or "loadall" 
+    command = "bpftool prog " + load_loadall + prog_obj + " " + prog_path + " "
     # Fixed Path???: command += ... +"/sys/fs/bpf/progs" + ...
     if type != None:
         command += "type" + type + " "
@@ -85,4 +92,3 @@ def map_update(map_map, key_data=None, value=None, update_flags=None):
         print("ERRORE")
         
     return command
-
